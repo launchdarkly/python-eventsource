@@ -103,7 +103,6 @@ class SSEClient:
     
     def restart(self):
         if self._response:
-            print("*** restarting!")
             self._restarting = True  # this lets us avoid logging a spurious error when we've deliberately closed the connection
             self._response.release_conn()
 
