@@ -116,63 +116,6 @@ class SSEClient:
                     if not self._should_retry(e):
                         raise e
 
-    def _compute_next_delay(self) -> float:
-        if self.__first_attempt:
-            self.__first_attempt = False
-            return 0
-        retry_delay_result = self.__retry_delay_strategy(
-            RetryDelayParams(self.__base_delay, time.time(), self.__last_success_time))
-        self.__retry_delay_strategy = retry_delay_result.next_strategy or self.__retry_delay_strategy
-        return retry_delay_result.delay
-
-    def _should_retry(self, error: Optional[Exception]) -> bool:
-        retry_result = self.__retry_filter(RetryFilterParams(error))
-        if retry_result.request_params:
-            self.__request_params = retry_result.request_params
-        return retry_result.should_retry
-
-    def _connect(self, delay: float):
-        if delay > 0:
-            self.__logger.info("Will reconnect after delay of %fs" % delay)
-            time.sleep(delay)
-
-        params = self.__request_params
-
-        headers = params.headers.copy() if params.headers else {}
-        headers['Cache-Control'] = 'no-cache'
-        headers['Accept'] = 'text/event-stream'
-
-        if self.__last_event_id:
-            headers['Last-Event-ID'] = self.__last_event_id
-
-        request_options = params.urllib3_request_options.copy() if params.urllib3_request_options else {}
-        request_options['headers'] = headers
-
-        self.__logger.info("Connecting to stream at %s" % params.url)
-
-        resp = None
-        try:
-            resp = self.__http.request(
-                'GET',
-                params.url,
-                preload_content=False,
-                retries=Retry(total=None, read=0, connect=0, status=0, other=0, redirect=3),
-                **request_options)
-        except MaxRetryError as e:
-            raise e.reason  # e.reason is the underlying I/O error
-        
-        if resp.status >= 400 or resp.status == 204:
-            raise HTTPStatusError(resp.status)
-        else:
-            content_type = resp.getheader('Content-Type')
-            if content_type is None or not str(content_type).startswith("text/event-stream"):
-                raise HTTPContentTypeError(content_type)
-
-        self.__response = resp
-        self.__last_success_time = time.time()
-
-        self.__stream = self.__response.stream(amt=self.chunk_size)
-
     def close(self):
         """
         Permanently shuts down this client instance and closes any active connection.
@@ -262,6 +205,63 @@ class SSEClient:
                 yield item
             elif isinstance(item, Exception):
                 raise item
+
+    def _compute_next_delay(self) -> float:
+        if self.__first_attempt:
+            self.__first_attempt = False
+            return 0
+        retry_delay_result = self.__retry_delay_strategy(
+            RetryDelayParams(self.__base_delay, time.time(), self.__last_success_time))
+        self.__retry_delay_strategy = retry_delay_result.next_strategy or self.__retry_delay_strategy
+        return retry_delay_result.delay
+
+    def _should_retry(self, error: Optional[Exception]) -> bool:
+        retry_result = self.__retry_filter(RetryFilterParams(error))
+        if retry_result.request_params:
+            self.__request_params = retry_result.request_params
+        return retry_result.should_retry
+
+    def _connect(self, delay: float):
+        if delay > 0:
+            self.__logger.info("Will reconnect after delay of %fs" % delay)
+            time.sleep(delay)
+
+        params = self.__request_params
+
+        headers = params.headers.copy() if params.headers else {}
+        headers['Cache-Control'] = 'no-cache'
+        headers['Accept'] = 'text/event-stream'
+
+        if self.__last_event_id:
+            headers['Last-Event-ID'] = self.__last_event_id
+
+        request_options = params.urllib3_request_options.copy() if params.urllib3_request_options else {}
+        request_options['headers'] = headers
+
+        self.__logger.info("Connecting to stream at %s" % params.url)
+
+        resp = None
+        try:
+            resp = self.__http.request(
+                'GET',
+                params.url,
+                preload_content=False,
+                retries=Retry(total=None, read=0, connect=0, status=0, other=0, redirect=3),
+                **request_options)
+        except MaxRetryError as e:
+            raise e.reason  # e.reason is the underlying I/O error
+        
+        if resp.status >= 400 or resp.status == 204:
+            raise HTTPStatusError(resp.status)
+        else:
+            content_type = resp.getheader('Content-Type')
+            if content_type is None or not str(content_type).startswith("text/event-stream"):
+                raise HTTPContentTypeError(content_type)
+
+        self.__response = resp
+        self.__last_success_time = time.time()
+
+        self.__stream = self.__response.stream(amt=self.chunk_size)
 
     def __enter__(self):
         return self
