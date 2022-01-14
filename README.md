@@ -8,7 +8,13 @@
 
 The `launchdarkly/python-eventsource` package allows Python developers to consume Server-Sent-Events (SSE) from a remote API. The SSE specification is defined here: [https://html.spec.whatwg.org/multipage/server-sent-events.html](https://html.spec.whatwg.org/multipage/server-sent-events.html#server-sent-events)
 
-This package's primary purpose is to support the [LaunchDarkly SDK for Python](https://github.com/launchdarkly/python-server-sdk), but it can be used independently.
+This package's primary purpose is to support the [LaunchDarkly SDK for Python](https://github.com/launchdarkly/python-server-sdk), but it can be used independently. In its simplest configuration, it emulates the behavior of the EventSource API as defined in the SSE specification, with the addition of exponential backoff behavior for retries. However, it also includes optional features used by LaunchDarkly SDKs that are not part of the core specification, such as:
+
+* Customizing the backoff/jitter behavior.
+* Setting read timeouts, custom headers, and other HTTP request properties.
+* Specifying that connections should be retried under circumstances where the standard EventSource behavior would not retry them, such as if the server returns an HTTP error status.
+
+This is a synchronous implementation which blocks the caller's thread when reading events or reconnecting.
 
 ## Supported Python versions
 

@@ -84,6 +84,9 @@ class MockServerWrapper(Thread):
                 rs.append(str(self.requests.get(False)))
             assert False, "expected %d more requests but had %s" % (count, rs)
 
+    def should_have_no_more_requests(self):
+        self.should_have_requests(0)
+
     # enter/exit magic methods allow server to be auto-closed by "with" statement
     def __enter__(self):
         return self

@@ -71,6 +71,8 @@ class _SSEReader:
         for line in self._lines_source:
             if line == "":
                 if event_data is not None:
+                    if event_id is not None:
+                        self._last_event_id = event_id
                     yield Event(
                         "message" if event_type == "" else event_type,
                         event_data,
@@ -82,15 +84,17 @@ class _SSEReader:
                 event_id = None
                 continue
             colon_pos = line.find(':')
-            if colon_pos < 0:
-                continue  # malformed line - ignore
             if colon_pos == 0:
                 yield Comment(line[1:])
                 continue
-            name = line[0:colon_pos]
-            if colon_pos < (len(line) - 1) and line[colon_pos + 1] == ' ':
-                colon_pos += 1
-            value = line[colon_pos+1:]
+            if colon_pos < 0:
+                name = line
+                value = ""
+            else:
+                name = line[0:colon_pos]
+                if colon_pos < (len(line) - 1) and line[colon_pos + 1] == ' ':
+                    colon_pos += 1
+                value = line[colon_pos+1:]
             if name == 'event':
                 event_type = value
             elif name == 'data':
@@ -98,7 +102,6 @@ class _SSEReader:
             elif name == 'id':
                 if value.find("\x00") < 0:
                     event_id = value
-                    self._last_event_id = value
             elif name == 'retry':
                 try:
                     n = int(value)

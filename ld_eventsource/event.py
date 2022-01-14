@@ -1,9 +1,13 @@
 import json
 from typing import Optional
 
+
 class Event:
     """
-    An event received by SSEClient.
+    An event received by :class:`ld_eventsource.SSEClient`.
+
+    Instances of this class are returned by both :prop:`ld_eventsource.SSEClient.events` and
+    :prop:`ld_eventsource.SSEClient.all`.
     """
     def __init__(self,
         event: str='message',
@@ -58,7 +62,16 @@ class Event:
             "None" if self._last_event_id is None else json.dumps(self._last_event_id)
         )
 
+
 class Comment:
+    """
+    A comment received by :class:`ld_eventsource.SSEClient`.
+    
+    Comment lines (any line beginning with a colon) have no significance in the SSE specification
+    and can be ignored, but if you want to see them, use :prop:`ld_eventsource.SSEClient.all`.
+    They will never be returned by :prop:`ld_eventsource.SSEClient.events`.
+    """
+    
     def __init__(self, comment: str):
         self._comment = comment
 
@@ -71,3 +84,43 @@ class Comment:
 
     def __repr__(self):
         return ":" + self._comment
+
+
+class Start:
+    """
+    Indicates that :class:`SSEClient` has successfully connected to a stream.
+
+    Instances of this class are only available from :prop:`ld_eventsource.SSEClient.all`.
+    A `Start` is returned for the first successful connection. If the client reconnects
+    after a failure, there will be a :class:`ld_eventsource.Fault` followed by a
+    `Start`.    
+    """
+    pass
+
+
+class Fault:
+    """
+    Indicates that :class:`SSEClient` encountered an error or end of stream.
+
+    Instances of this class are only available from :prop:`ld_eventsource.SSEClient.all`.
+    They indicate either 1. a problem that happened after an initial successful connection
+    was made, or 2. a problem with the initial connection, if you passed `True` for
+    the `defer_connect` parameter to the :class:`ld_eventsource.SSEClient` constructor.
+    """
+
+    def __init__(self, error: Optional[Exception], will_retry: bool, retry_delay: float):
+        self.__error = error
+        self.__will_retry = will_retry
+        self.__retry_delay = retry_delay
+    
+    @property
+    def error(self) -> Optional[Exception]:
+        return self.__error
+    
+    @property
+    def will_retry(self) -> bool:
+        return self.__will_retry
+    
+    @property
+    def retry_delay(self) -> float:
+        return self.__retry_delay

@@ -58,8 +58,8 @@ def status():
 
 @app.route('/', methods=['DELETE'])
 def delete_stop_service():
-    print("Test service has told us to exit")
-    quit()
+    global_log.info("Test service has told us to exit")
+    os._exit(0)
 
 @app.route('/', methods=['POST'])
 def post_create_stream():

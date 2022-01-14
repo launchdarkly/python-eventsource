@@ -17,10 +17,8 @@ streams = {}
 
 http_client = urllib3.PoolManager()
 
-def to_millis(t):
-    if t is None:
-        return None
-    return t / 1000
+def millis_to_seconds(t):
+    return None if t is None else t / 1000
 
 
 class StreamEntity:
@@ -30,6 +28,7 @@ class StreamEntity:
         self.log = logging.getLogger(options["tag"])
         self.closed = False
         self.callback_counter = 0
+        self.sse = None
         
         thread = threading.Thread(target=self.run)
         thread.start()
@@ -38,14 +37,19 @@ class StreamEntity:
         stream_url = self.options["streamUrl"]
         try:
             self.log.info('Opening stream from %s', stream_url)
-            sse = SSEClient(
-                stream_url,
-                initial_retry_delay=to_millis(self.options.get("initialDelayMs")),
-                last_event_id=self.options.get("lastEventId"),
+            request = RequestParams(
+                url=stream_url,
                 headers=self.options.get("headers"),
-                timeout=None if self.options.get("readTimeoutMs") is None else
-                    urllib3.Timeout(read=to_millis(self.options.get("readTimeoutMs"))),
-                logger=self.log
+                urllib3_request_options=None if self.options.get("readTimeoutMs") is None else {
+                    "timeout": urllib3.Timeout(read=millis_to_seconds(self.options.get("readTimeoutMs")))
+                }
+            )                    
+            sse = SSEClient(
+                request,
+                initial_retry_delay=millis_to_seconds(self.options.get("initialDelayMs")),
+                last_event_id=self.options.get("lastEventId"),
+                logger=self.log,
+                defer_connect=True
             )
             self.sse = sse
             for item in sse.all:
@@ -65,16 +69,14 @@ class StreamEntity:
                         'kind': 'comment',
                         'comment': item.comment
                     })
-                elif isinstance(item, Exception):
-                    self.log.info('Received error from stream: %s' % item)
+                elif isinstance(item, Fault):
+                    if self.closed:
+                        break
+                    self.log.info('Received error from stream: %s' % (item.error or 'EOF'))
                     self.send_message({
                         'kind': 'error',
-                        'error': str(item)
+                        'error': str(item.error)
                     })
-            self.send_message({
-                'kind': 'error',
-                'error': 'Stream closed'
-            })
         except Exception as e:
             self.log.info('Received error from stream: %s', e)
             self.log.info(traceback.format_exc())
