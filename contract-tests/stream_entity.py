@@ -72,11 +72,14 @@ class StreamEntity:
                 elif isinstance(item, Fault):
                     if self.closed:
                         break
-                    self.log.info('Received error from stream: %s' % (item.error or 'EOF'))
-                    self.send_message({
-                        'kind': 'error',
-                        'error': str(item.error)
-                    })
+                    # item.error will be None if this is just an EOF rather than an I/O error or HTTP error.
+                    # Currently the test harness does not expect us to send an error message in that case.
+                    if item.error:
+                        self.log.info('Received error from stream: %s' % item.error)
+                        self.send_message({
+                            'kind': 'error',
+                            'error': str(item.error)
+                        })
         except Exception as e:
             self.log.info('Received error from stream: %s', e)
             self.log.info(traceback.format_exc())

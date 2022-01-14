@@ -11,8 +11,6 @@ from urllib3 import PoolManager
 from urllib3.exceptions import MaxRetryError
 from urllib3.util import Retry
 
-import pprint
-
 
 class SSEClient:
     """
@@ -147,10 +145,8 @@ class SSEClient:
         if self.__last_event_id:
             headers['Last-Event-ID'] = self.__last_event_id
 
-        request_options = params.urllib3_request_options.copy if params.urllib3_request_options else {}
+        request_options = params.urllib3_request_options.copy() if params.urllib3_request_options else {}
         request_options['headers'] = headers
-
-        self.__logger.warn("*** request_options is: %s" % pprint.pformat(request_options))
 
         self.__logger.info("Connecting to stream at %s" % params.url)
 
@@ -181,7 +177,7 @@ class SSEClient:
         """
         Permanently shuts down this client instance and closes any active connection.
         """
-        self._closed = True
+        self.__closed = True
         if self.__response:
             self.__response.release_conn()
         if self.__http_should_close:
@@ -238,7 +234,7 @@ class SSEClient:
                         # It's normal to get an I/O error if we force-closed the stream for a restart
                         self.__restarting = False
                         continue
-                    if self._closed:
+                    if self.__closed:
                         # It's normal to get an I/O error if we force-closed the stream to shut down
                         return
                     error = e
