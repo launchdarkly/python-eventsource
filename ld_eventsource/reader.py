@@ -8,6 +8,7 @@ class _BufferedLineReader:
     Helper class that encapsulates the logic for reading UTF-8 stream data as a series of text lines,
     each of which can be terminated by \n, \r, or \r\n.
     """
+    @staticmethod
     def lines_from(chunks):
         """
         Takes an iterable series of encoded chunks (each of "bytes" type) and parses it into an iterable
