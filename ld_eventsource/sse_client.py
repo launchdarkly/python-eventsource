@@ -130,10 +130,10 @@ class SSEClient:
         """
         An iterable series of notifications from the stream. Each of these can be any of the following:
         
-        * :class:`Event`
-        * :class:`Comment`
-        * :class:`Start`
-        * :class:`Fault`
+        * :class:`ld_eventsource.Event`
+        * :class:`ld_eventsource.Comment`
+        * :class:`ld_eventsource.Start`
+        * :class:`ld_eventsource.Fault`
 
         You can use :prop:`events` instead if you are only interested in Events.
         """
@@ -182,7 +182,7 @@ class SSEClient:
     @property
     def events(self) -> Iterable[Event]:
         """
-        An iterable series of Event objects received from the stream.
+        An iterable series of :class:`ld_eventsource.Event` objects received from the stream.
 
         Use :prop:`all` instead if you also want to know about other kinds of occurrences.
         """

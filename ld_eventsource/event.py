@@ -77,6 +77,9 @@ class Comment:
 
     @property
     def comment(self) -> str:
+        """
+        The comment text, not including the leading colon.
+        """
         return self._comment
 
     def __eq__(self, other):
@@ -88,7 +91,7 @@ class Comment:
 
 class Start:
     """
-    Indicates that :class:`SSEClient` has successfully connected to a stream.
+    Indicates that :class:`ld_eventsource.SSEClient` has successfully connected to a stream.
 
     Instances of this class are only available from :prop:`ld_eventsource.SSEClient.all`.
     A `Start` is returned for the first successful connection. If the client reconnects
@@ -100,7 +103,7 @@ class Start:
 
 class Fault:
     """
-    Indicates that :class:`SSEClient` encountered an error or end of stream.
+    Indicates that :class:`ld_eventsource.SSEClient` encountered an error or end of stream.
 
     Instances of this class are only available from :prop:`ld_eventsource.SSEClient.all`.
     They indicate either 1. a problem that happened after an initial successful connection
@@ -115,12 +118,25 @@ class Fault:
     
     @property
     def error(self) -> Optional[Exception]:
+        """
+        The exception that caused the stream to fail, if any. If this is `None`, it means
+        that the stream simply ran out of data, i.e. the server shut down the connection
+        in an orderly way after sending an EOF chunk as defined by chunked transfer encoding.
+        """
         return self.__error
     
     @property
     def will_retry(self) -> bool:
+        """
+        True if the :class:`ld_eventsource.SSEClient` will try to reconnect. This depends on
+        the nature of the error and whether a custom `retry_filter` was specified.
+        """
         return self.__will_retry
     
     @property
     def retry_delay(self) -> float:
+        """
+        The time, in seconds, that the :class:`ld_eventsource.SSEClient` will wait before
+        trying to reconnect. If :prop:`will_retry` was False, then this value is undefined.
+        """
         return self.__retry_delay
