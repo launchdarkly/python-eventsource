@@ -90,7 +90,7 @@ class SSEClient:
         self.__retry_filter = retry_filter or default_retry_filter()
         self.__last_event_id = last_event_id
         self.__http = http_pool or PoolManager()
-        self.__http_should_close = (http_pool is not None)
+        self.__http_should_close = (http_pool is None)
         
         if logger is None:
             logger = logging.getLogger('launchdarkly-eventsource.null')
