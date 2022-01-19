@@ -123,7 +123,7 @@ class SSEClient:
         if self.__response:
             self.__response.release_conn()
         if self.__http_should_close:
-            self.__http.close()
+            self.__http.clear()
     
     @property
     def all(self):
