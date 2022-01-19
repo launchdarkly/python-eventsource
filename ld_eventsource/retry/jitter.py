@@ -90,7 +90,7 @@ class _DefaultJitterStrategy:
         return JitterResult(result, next_strategy=updated_strategy.apply)
 
 
-def default_jitter_strategy(ratio: float = 0.5, random_seed: Optional[float] = None) -> JitterStrategy:
+def default_jitter_strategy(ratio: float = 1.0, random_seed: Optional[float] = None) -> JitterStrategy:
     """
     Provides the default retry delay jitter behavior for
     :func:`ld_eventsource.retry.default_retry_delay_strategy`.

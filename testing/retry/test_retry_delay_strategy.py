@@ -55,7 +55,8 @@ def test_retry_delay_default_jitter_without_backoff():
     for count in range(0, 3):
         fake_time += 1000
         result = ds(RetryDelayParams(base, fake_time))
-        assert result.delay <= (base * 1.5)
+        assert result.delay >= base
+        assert result.delay <= (base * 2)
         ds = result.next_strategy
 
 
