@@ -1,7 +1,6 @@
 from ld_eventsource.retry import BackoffParams, JitterParams, default_jitter_strategy
 
 from math import trunc
-from random import Random
 
 
 def test_default_jitter():
