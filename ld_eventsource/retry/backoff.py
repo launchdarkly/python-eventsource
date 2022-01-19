@@ -46,16 +46,16 @@ class BackoffResult:
     Values that are returned by the `BackoffStrategy` used with
     :func:`ld_eventsource.retry.default_retry_delay_strategy`.
     """
-    def __init__(self, delay: float, next_strategy: Optional[BackoffStrategy] = None):
-        self.__delay = delay
+    def __init__(self, offset: float, next_strategy: Optional[BackoffStrategy] = None):
+        self.__offset = offset
         self.__next_strategy = next_strategy
     
     @property
-    def delay(self) -> float:
+    def offset(self) -> float:
         """
-        The computed delay, in seconds, before applying jitter.
+        The additional time, in seconds, to add to the base delay before applying jitter.
         """
-        return self.__delay
+        return self.__offset
     
     @property
     def next_strategy(self) -> Optional[BackoffStrategy]:
@@ -76,16 +76,18 @@ def default_backoff_strategy() -> BackoffStrategy:
     and doubles on each subsequent attempt.
     """
     def apply(params: BackoffParams) -> BackoffResult:
-        delay = 0 if params.base_delay <= 0 else params.base_delay * (2 ** (params.current_retry_count - 1))
-        return BackoffResult(delay)
+        base = params.base_delay
+        if base <= 0 or params.current_retry_count <= 1:
+            return BackoffResult(0)
+        return BackoffResult(base * (2 ** (params.current_retry_count - 1)) - base)
     return apply
 
 
 def no_backoff() -> BackoffStrategy:
     """
-    A `BackoffStrategy` that does not do any backoff: it always returns the base delay (although
+    A `BackoffStrategy` that does not do any backoff: it never adds to the base delay (although
     a jitter might still be applied to the delay).
     """
     def apply(params: BackoffParams) -> BackoffResult:
-        return BackoffResult(params.base_delay)
+        return BackoffResult(0)
     return apply

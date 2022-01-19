@@ -48,16 +48,16 @@ class JitterResult:
     Values that are returned by the `JitterStrategy` used with
     :func:`ld_eventsource.retry.default_retry_delay_strategy`.
     """
-    def __init__(self, delay: float, next_strategy: Optional[JitterStrategy] = None):
-        self.__delay = delay
+    def __init__(self, offset: float, next_strategy: Optional[JitterStrategy] = None):
+        self.__offset = offset
         self.__next_strategy = next_strategy
     
     @property
-    def delay(self) -> float:
+    def offset(self) -> float:
         """
         The amount of jitter to add to the delay.
         """
-        return self.__delay
+        return self.__offset
     
     @property
     def next_strategy(self) -> Optional[JitterStrategy]:

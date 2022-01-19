@@ -3,7 +3,7 @@ from ld_eventsource.retry import BackoffParams, BackoffResult, JitterParams, Jit
 
 
 def arithmetically_increasing_backoff(params: BackoffParams) -> BackoffResult:
-    return BackoffResult(params.base_delay * params.current_retry_count)
+    return BackoffResult(params.base_delay * (params.current_retry_count - 1))
 
 def non_random_half_jitter(params: JitterParams) -> JitterResult:
     return JitterResult(params.delay / 2)
