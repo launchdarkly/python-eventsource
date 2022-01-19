@@ -10,10 +10,6 @@ import urllib3
 sys.path.insert(1, os.path.join(sys.path[0], '..'))
 from ld_eventsource import *
 
-port = 8000
-
-stream_counter = 0
-streams = {}
 
 http_client = urllib3.PoolManager()
 
