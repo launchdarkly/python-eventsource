@@ -50,8 +50,7 @@ def status():
             'comments',
             'headers',
             'last-event-id',
-            'read-timeout',
-            'restart'
+            'read-timeout'
         ]
     }
     return (json.dumps(body), 200, {'Content-type': 'application/json'})

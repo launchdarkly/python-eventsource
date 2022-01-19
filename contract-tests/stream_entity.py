@@ -90,9 +90,7 @@ class StreamEntity:
 
     def do_command(self, command: str) -> bool:
         self.log.info('Test service sent command: %s' % command)
-        if command == 'restart':
-            self.sse.restart()
-            return True
+        # currently we support no special commands
         return False
     
     def send_message(self, message):

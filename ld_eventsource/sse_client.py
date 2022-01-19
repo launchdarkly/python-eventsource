@@ -101,7 +101,6 @@ class SSEClient:
         self.__last_success_time = None  # type: Optional[float]
 
         self.__closed = False
-        self.__restarting = False
         self.__first_attempt = True
         self.__response = None
         self.__stream = None
@@ -126,15 +125,6 @@ class SSEClient:
         if self.__http_should_close:
             self.__http.close()
     
-    def restart(self):
-        """
-        Causes the client to immediately drop any active connection and attempt to reconnect,
-        just as it would if the connection had been closed by the server.
-        """
-        if self.__response:
-            self.__restarting = True  # this lets us avoid logging a spurious error when we've deliberately closed the connection
-            self.__response.release_conn()
-
     @property
     def all(self):
         """
@@ -173,10 +163,6 @@ class SSEClient:
                     # was closed without an error.
                     self.__stream = None
                 except Exception as e:
-                    if self.__restarting:
-                        # It's normal to get an I/O error if we force-closed the stream for a restart
-                        self.__restarting = False
-                        continue
                     if self.__closed:
                         # It's normal to get an I/O error if we force-closed the stream to shut down
                         return
