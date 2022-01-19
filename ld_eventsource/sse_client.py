@@ -38,7 +38,7 @@ class SSEClient:
     reconnection. There is a base delay set by `initial_retry_delay` (which can be overridden
     by the stream if the server sends a `retry:` line). By default, as defined by
     :func:`ld_eventsource.retry.default_retry_delay_strategy`, this delay will double with each
-    subsequent retry, and will also have a pseudo-random jitter applied. You can customize this
+    subsequent retry, and will also have a pseudo-random jitter added. You can customize this
     behavior with `retry_delay_strategy`.
 
     If the application wants to track every state change, including retries of the initial
@@ -53,7 +53,7 @@ class SSEClient:
     def __init__(
         self, 
         request: Union[str, RequestParams],
-        initial_retry_delay: float=1.0,
+        initial_retry_delay: float=0.5,
         retry_delay_strategy: Optional[RetryDelayStrategy]=None,
         retry_filter: Optional[RetryFilter]=None,
         last_event_id: Optional[str]=None,

@@ -36,7 +36,7 @@ class JitterParams:
 
 JitterStrategy = Callable[[JitterParams], 'JitterResult']
 """
-The signature of a function that applies pseudo-random variation to a retry delay.
+The signature of a function that adds pseudo-random variation to a retry delay.
 
 See :func:`ld_eventsource.retry.default_retry_delay_strategy` and
 :func:`ld_eventsource.retry.default_jitter_strategy` for more details.
@@ -55,7 +55,7 @@ class JitterResult:
     @property
     def delay(self) -> float:
         """
-        The computed delay, in seconds, before applying jitter.
+        The amount of jitter to add to the delay.
         """
         return self.__delay
     
@@ -75,13 +75,16 @@ class _DefaultJitterStrategy:
         self.__random = random
 
     def apply(self, params: JitterParams) -> JitterResult:
+        if params.delay <= 0:
+            return JitterResult(params.delay)
+
         # To avoid having this object contain mutable state, we create a new Random with the same
         # state as our previous Random before using it.
         rand_state = self.__random.getstate()
         new_random = Random(self.__seed)
         new_random.setstate(rand_state)
 
-        result = params.delay - (new_random.random() * self.__ratio * params.delay)
+        result = new_random.random() * self.__ratio * params.delay
 
         updated_strategy = _DefaultJitterStrategy(self.__ratio, self.__seed, new_random)
         return JitterResult(result, next_strategy=updated_strategy.apply)
@@ -92,9 +95,9 @@ def default_jitter_strategy(ratio: float = 0.5, random_seed: Optional[float] = N
     Provides the default retry delay jitter behavior for
     :func:`ld_eventsource.retry.default_retry_delay_strategy`.
     
-    The default behavior is that the computed backoff delay will be decreased by a pseudo-random
+    The default behavior is that the computed backoff delay will be increased by a pseudo-random
     proportion between zero and `ratio`. That is, if `ratio` is 0.25, then each delay N may be
-    decreased by up to one-quarter of N. If `ratio` is zero, there is no jitter.
+    increased by up to one-quarter of N. If `ratio` is zero, there is no jitter.
 
     :param ratio: the jitter multiplier, between zero and 1 inclusive
     :param random_seed: if specified, the random number generator uses this seed (for test
@@ -109,5 +112,5 @@ def no_jitter() -> JitterStrategy:
     A `JitterStrategy` that does not do any jitter: it always returns the exact computed backoff delay.
     """
     def apply(params: JitterParams) -> JitterResult:
-        return JitterResult(params.delay)
+        return JitterResult(0)
     return apply

@@ -112,7 +112,7 @@ class _DefaultRetryDelayStrategy:
         backoff_result = self.__backoff(backoff_params)
         jitter_result = self.__jitter(JitterParams(backoff_result.delay, backoff_params))
         
-        delay = jitter_result.delay
+        delay = backoff_result.delay + jitter_result.delay
         if delay > self.__max_delay:
             delay = self.__max_delay
             # increasing the count after this point would only make it likelier for us to get a math overflow

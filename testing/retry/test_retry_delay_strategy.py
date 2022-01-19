@@ -18,7 +18,7 @@ def test_retry_delay_default_backoff_and_jitter():
         fake_time += 1000
         result = ds(RetryDelayParams(base, fake_time))
         assert last_delay is None or result.delay > last_delay
-        assert result.delay <= base * (2 ** count)
+        assert result.delay < base * (2 ** (count + 1))
         last_delay = result.delay
         ds = result.next_strategy
 
@@ -55,7 +55,7 @@ def test_retry_delay_default_jitter_without_backoff():
     for count in range(0, 3):
         fake_time += 1000
         result = ds(RetryDelayParams(base, fake_time))
-        assert result.delay <= base
+        assert result.delay <= (base * 1.5)
         ds = result.next_strategy
 
 
@@ -66,7 +66,7 @@ def test_retry_delay_custom_jitter_without_backoff():
     for count in range(0, 3):
         fake_time += 1000
         result = ds(RetryDelayParams(base, fake_time))
-        assert result.delay == base / 2
+        assert result.delay == base * 1.5
         ds = result.next_strategy
 
 
