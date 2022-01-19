@@ -247,7 +247,7 @@ class SSEClient:
         self.__response = resp
         self.__last_success_time = time.time()
 
-        self.__stream = self.__response.stream(amt=self.chunk_size)
+        self.__stream = resp.stream(amt=self.chunk_size)
 
     def __enter__(self):
         return self

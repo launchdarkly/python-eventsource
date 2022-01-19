@@ -100,7 +100,7 @@ class _DefaultRetryDelayStrategy:
     def apply(
         self,
         params: RetryDelayParams
-    ) -> Tuple[float, RetryDelayStrategy]:
+    ) -> RetryDelayResult:
         new_retry_count = self.__current_retry_count
         if self.__reset_interval \
             and params.last_success_time \
