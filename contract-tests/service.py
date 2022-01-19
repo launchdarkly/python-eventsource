@@ -41,7 +41,6 @@ stream_counter = 0
 streams = {}
 global_log = logging.getLogger('testservice')
 
-http_client = urllib3.PoolManager()
 
 @app.route('/', methods=['GET'])
 def status():

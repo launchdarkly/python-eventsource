@@ -40,7 +40,7 @@ class _BufferedLineReader:
                 partial_line = None
             # Check whether the buffer really ended in a terminator. If it did not, then the last line in
             # lines is a partial line and should not be emitted yet.
-            last_char = chunk[len(chunk)-1]
+            last_char = chunk[-1]
             if last_char == 13:
                 last_char_was_cr = True  # remember this in case the next chunk starts with \n
             elif last_char != 10:
@@ -91,7 +91,7 @@ class _SSEReader:
                 name = line
                 value = ""
             else:
-                name = line[0:colon_pos]
+                name = line[:colon_pos]
                 if colon_pos < (len(line) - 1) and line[colon_pos + 1] == ' ':
                     colon_pos += 1
                 value = line[colon_pos+1:]
