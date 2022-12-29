@@ -1,0 +1,10 @@
+version: 2
+
+publications:
+  - url: https://pypi.org/project/launchdarkly-eventsource/
+    description: PyPI
+
+jobs:
+  - docker: {}
+    template:
+      name: python

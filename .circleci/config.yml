@@ -1,0 +1,90 @@
+version: 2.1
+
+orbs:
+   win: circleci/windows@1.0.0
+
+workflows:
+  test:
+    jobs:
+      - test-linux:
+          name: Python 3.7
+          docker-image: cimg/python:3.7
+      - test-linux:
+          name: Python 3.8
+          docker-image: cimg/python:3.8
+      - test-linux:
+          name: Python 3.9
+          docker-image: cimg/python:3.9
+      - test-linux:
+          name: Python 3.10
+          docker-image: cimg/python:3.10
+      - test-linux:
+          name: Python 3.11
+          docker-image: cimg/python:3.11
+      - test-windows:
+          name: Windows Python 3
+
+jobs:
+  test-linux:
+    parameters:
+      docker-image:
+        type: string
+    docker:
+      - image: <<parameters.docker-image>>
+    steps:
+      - checkout
+      - run:
+          name: install requirements
+          command: |
+            pip install -r test-requirements.txt
+            python setup.py install
+            pip freeze
+      - run:
+          name: run tests
+          command: |
+            mkdir test-reports
+            pytest -s --junitxml=test-reports/junit.xml testing -W error::SyntaxWarning
+      - run:
+          name: lint
+          command: make lint
+
+      - run:
+          name: build SSE contract test service
+          command: make build-contract-test-service
+      - run:
+          name: start SSE contract test service
+          command: make start-contract-test-service
+          background: true
+      - run:
+          name: run SSE contract tests
+          command: make run-contract-tests
+      
+      - store_test_results:
+          path: test-reports
+      - store_artifacts:
+          path: test-reports
+
+  test-windows:
+    executor:
+      name: win/vs2019
+      shell: powershell.exe
+    steps:
+      - checkout
+      - run:
+          name: install Python 3
+          command: choco install python --no-progress
+      - run:
+          name: install requirements
+          command: |
+            python --version
+            pip install -r test-requirements.txt
+            python setup.py install
+      - run:
+          name: run tests
+          command: |
+            mkdir test-reports
+            python -m pytest -s --junitxml=test-reports/junit.xml testing;
+      - store_test_results:
+          path: test-reports
+      - store_artifacts:
+          path: test-reports
