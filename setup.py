@@ -43,7 +43,7 @@ setup(
     version=package_version,
     author='LaunchDarkly',
     author_email='dev@launchdarkly.com',
-    packages=['ld_eventsource', 'ld_eventsource.retry'],
+    packages=['ld_eventsource'],
     url='https://github.com/launchdarkly/python-eventsource',
     description='LaunchDarkly SSE Client',
     long_description='LaunchDarkly SSE Client for Python',
