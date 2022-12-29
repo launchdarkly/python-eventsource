@@ -1,6 +1,6 @@
 
 lint:
-	mypy --config-file mypy.ini ld_eventsource testing
+	mypy --install-types --non-interactive --config-file mypy.ini ld_eventsource testing
 
 .PHONY: lint
 
