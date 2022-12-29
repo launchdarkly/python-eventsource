@@ -7,9 +7,6 @@ workflows:
   test:
     jobs:
       - test-linux:
-          name: Python 3.6
-          docker-image: cimg/python:3.6
-      - test-linux:
           name: Python 3.7
           docker-image: cimg/python:3.7
       - test-linux:
@@ -21,6 +18,9 @@ workflows:
       - test-linux:
           name: Python 3.10
           docker-image: cimg/python:3.10
+      - test-linux:
+          name: Python 3.11
+          docker-image: cimg/python:3.11
       - test-windows:
           name: Windows Python 3
 

@@ -14,7 +14,7 @@ We encourage pull requests and other contributions from the community. Before su
  
 ### Prerequisites
  
-This project should be developed against its minimum compatible version, Python 3.5.
+This project should be developed against its minimum compatible version as described in [`README.md`](./README.md).
 
 To install the runtime and test requirements:
 
