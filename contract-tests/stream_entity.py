@@ -44,6 +44,7 @@ class StreamEntity:
                 request,
                 initial_retry_delay=millis_to_seconds(self.options.get("initialDelayMs")),
                 last_event_id=self.options.get("lastEventId"),
+                retry_filter=lambda _: RetryFilterResult(not self.closed),
                 logger=self.log,
                 defer_connect=True
             )
@@ -111,7 +112,9 @@ class StreamEntity:
                 self.log.error('Callback request failed: %s', e)
 
     def close(self):
-        if self.sse:
-            self.sse.close()
         self.closed = True
+        # SSEClient.close() doesn't currently work, due to urllib3 hanging when we try to force-close a
+        # socket that's doing a blocking read. However, in the context of the contract tests, we know that
+        # the server will be closing the connection anyway when a test is done-- so all we need to do is
+        # tell ourselves not to retry the connection when it fails, and setting self.closed does that.
         self.log.info('Test ended')
