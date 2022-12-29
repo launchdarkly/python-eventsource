@@ -7,8 +7,8 @@ from ld_eventsource.retry_filter import *
 
 import logging
 import time
-from typing import Iterable, Optional, Union
-from urllib3 import PoolManager
+from typing import Iterable, Iterator, Optional, Union
+from urllib3 import BaseHTTPResponse, PoolManager
 from urllib3.exceptions import MaxRetryError
 from urllib3.util import Retry
 
@@ -111,8 +111,8 @@ class SSEClient:
         self.__connected_time = 0
 
         self.__closed = False
-        self.__response = None
-        self.__stream = None
+        self.__response = None  # type: Optional[BaseHTTPResponse]
+        self.__stream = None  # type: Optional[Iterator[bytes]]
 
         if not defer_connect:
             while True:
@@ -237,7 +237,6 @@ class SSEClient:
 
         self.__logger.info("Connecting to stream at %s" % params.url)
 
-        resp = None
         try:
             resp = self.__http.request(
                 'GET',
@@ -246,14 +245,16 @@ class SSEClient:
                 retries=Retry(total=None, read=0, connect=0, status=0, other=0, redirect=3),
                 **request_options)
         except MaxRetryError as e:
-            raise e.reason  # e.reason is the underlying I/O error
+            reason = e.reason  # type: Optional[Exception]
+            if reason is not None:
+                raise reason  # e.reason is the underlying I/O error
         
         if resp.status >= 400 or resp.status == 204:
             raise HTTPStatusError(resp.status)
         else:
             content_type = resp.getheader('Content-Type')
             if content_type is None or not str(content_type).startswith("text/event-stream"):
-                raise HTTPContentTypeError(content_type)
+                raise HTTPContentTypeError(content_type or '')
 
         self.__response = resp
         self.__connected_time = time.time()
