@@ -2,7 +2,8 @@ from ld_eventsource.errors import *
 from ld_eventsource.event import *
 from ld_eventsource.reader import _BufferedLineReader, _SSEReader
 from ld_eventsource.request_params import *
-from ld_eventsource.retry import *
+from ld_eventsource.retry_delay_strategy import RetryDelayStrategy, default_retry_delay_strategy
+from ld_eventsource.retry_filter import *
 
 import logging
 import time
@@ -37,7 +38,7 @@ class SSEClient:
     To avoid flooding the server with requests, it is desirable to have a delay before each
     reconnection. There is a base delay set by `initial_retry_delay` (which can be overridden
     by the stream if the server sends a `retry:` line). By default, as defined by
-    :func:`ld_eventsource.retry.default_retry_delay_strategy`, this delay will double with each
+    :func:`ld_eventsource.default_retry_delay_strategy`, this delay will double with each
     subsequent retry, and will also have a pseudo-random jitter added. You can customize this
     behavior with `retry_delay_strategy`.
 
@@ -53,8 +54,9 @@ class SSEClient:
     def __init__(
         self, 
         request: Union[str, RequestParams],
-        initial_retry_delay: float=0.5,
+        initial_retry_delay: float=1,
         retry_delay_strategy: Optional[RetryDelayStrategy]=None,
+        retry_delay_reset_threshold: float=60,
         retry_filter: Optional[RetryFilter]=None,
         last_event_id: Optional[str]=None,
         http_pool: Optional[PoolManager]=None,
@@ -68,15 +70,17 @@ class SSEClient:
         :param initial_retry_delay: the initial delay before reconnecting after a failure,
             in seconds; this can increase as described in :class:`SSEClient`
         :param retry_delay_strategy: allows customization of the delay behavior for retries; if
-            not specified, uses :func:`ld_eventsource.retry.default_retry_delay_strategy`
+            not specified, uses :func:`default_retry_delay_strategy()`
+        :param retry_delay_reset_threshold: the minimum amount of time that a connection must
+            stay open before the SSEClient resets its retry delay strategy
         :param retry_filter: allows customization of the logic for whether to retry; if not
             specified, uses :func:`ld_eventsource.retry.default_retry_filter`
         :param last_event_id: if provided, the `Last-Event-Id` value will be preset to this
         :param http_pool: optional urllib3 `PoolManager` to provide an HTTP client
         :param logger: if provided, log messages will be written here
         :param defer_connect: if `True`, the constructor will return immediately so the
-            connection attempt only happens when you start reading :prop:`SSEClient.events`
-            or :prop:`SSEClient.all`
+            connection attempt only happens when you start reading :prop:`events`
+            or :prop:`all`
         """
         if isinstance(request, RequestParams):
             self.__request_params = request  # type: RequestParams
@@ -85,10 +89,16 @@ class SSEClient:
         else:
             raise TypeError("request must be either a string or RequestParams")
 
-        self.__base_delay = 1.0 if initial_retry_delay is None else initial_retry_delay
-        self.__retry_delay_strategy = retry_delay_strategy or default_retry_delay_strategy()
+        self.__base_retry_delay = initial_retry_delay
+        self.__base_retry_delay_strategy = retry_delay_strategy or default_retry_delay_strategy()
+        self.__retry_delay_reset_threshold = retry_delay_reset_threshold
+        self.__current_retry_delay_strategy = self.__base_retry_delay_strategy
+        self.__next_retry_delay = 0
+
         self.__retry_filter = retry_filter or default_retry_filter()
+
         self.__last_event_id = last_event_id
+
         self.__http = http_pool or PoolManager()
         self.__http_should_close = (http_pool is None)
         
@@ -98,22 +108,21 @@ class SSEClient:
             logger.propagate = False
         self.__logger = logger
         
-        self.__last_success_time = None  # type: Optional[float]
+        self.__connected_time = 0
 
         self.__closed = False
-        self.__first_attempt = True
         self.__response = None  # type: Optional[HTTPResponse]
         self.__stream = None  # type: Optional[Iterator[bytes]]
 
         if not defer_connect:
             while True:
-                delay = self._compute_next_delay()
                 try:
-                    self._connect(delay)
+                    self._connect()
                     return
                 except Exception as e:
                     if not self._should_retry(e):
                         raise e
+                    self._compute_next_retry_delay()
 
     def close(self):
         """
@@ -137,7 +146,6 @@ class SSEClient:
 
         You can use :prop:`events` instead if you are only interested in Events.
         """
-        next_reconnect_delay = None  # type: Optional[float]
         while True:
             connected = self.__stream is not None
             error = None  # type: Optional[Exception]
@@ -146,9 +154,10 @@ class SSEClient:
                 # We haven't connected yet, or we need to reconnect after a failure. If _connect
                 # throws an exception at this point, we catch the exception and yield it as a Fault.
                 try:
-                    self._connect(self._compute_next_delay() if next_reconnect_delay is None else next_reconnect_delay)
+                    self._connect()
                     connected = True
                 except Exception as e:
+                    self._compute_next_retry_delay()
                     error = e
 
             if connected:
@@ -173,8 +182,8 @@ class SSEClient:
             # Here, we have either run out of data (error = None) or hit an error. Either way, we will
             # yield a Fault and then ask the RetryFilter what to do.
             should_retry = self._should_retry(error)
-            next_reconnect_delay = self._compute_next_delay() if should_retry else 0
-            yield Fault(error, should_retry, next_reconnect_delay)
+            self._compute_next_retry_delay()
+            yield Fault(error, should_retry, self.__next_retry_delay)
             if not should_retry:
                 return  # not retrying, so the stream simply ends
             continue  # try to connect again
@@ -192,14 +201,15 @@ class SSEClient:
             elif isinstance(item, Exception):
                 raise item
 
-    def _compute_next_delay(self) -> float:
-        if self.__first_attempt:
-            self.__first_attempt = False
-            return 0
-        retry_delay_result = self.__retry_delay_strategy(
-            RetryDelayParams(self.__base_delay, time.time(), self.__last_success_time))
-        self.__retry_delay_strategy = retry_delay_result.next_strategy or self.__retry_delay_strategy
-        return retry_delay_result.delay
+    def _compute_next_retry_delay(self):
+        if self.__retry_delay_reset_threshold > 0 and self.__connected_time != 0:
+            connection_duration = time.time() - self.__connected_time
+            if connection_duration >= self.__retry_delay_reset_threshold:
+                self.__current_retry_delay_strategy = self.__base_retry_delay_strategy
+        retry_result = self.__current_retry_delay_strategy(self.__base_retry_delay)
+        self.__next_retry_delay = retry_result.delay
+        if retry_result.next_strategy is not None:
+            self.__current_retry_delay_strategy = retry_result.next_strategy
 
     def _should_retry(self, error: Optional[Exception]) -> bool:
         retry_result = self.__retry_filter(RetryFilterParams(error))
@@ -207,7 +217,8 @@ class SSEClient:
             self.__request_params = retry_result.request_params
         return retry_result.should_retry
 
-    def _connect(self, delay: float):
+    def _connect(self):
+        delay = self.__next_retry_delay
         if delay > 0:
             self.__logger.info("Will reconnect after delay of %fs" % delay)
             time.sleep(delay)
@@ -246,7 +257,7 @@ class SSEClient:
                 raise HTTPContentTypeError(content_type or '')
 
         self.__response = resp
-        self.__last_success_time = time.time()
+        self.__connected_time = time.time()
 
         self.__stream = resp.stream(amt=self.chunk_size)
 

@@ -1,5 +1,4 @@
 from ld_eventsource import *
-from ld_eventsource.retry import *
 
 from testing.helpers import *
 from testing.http_util import *
@@ -84,7 +83,7 @@ class TestSSEClientRetryWhileReadingStream:
                         with SSEClient(
                             server.uri,
                             initial_retry_delay=initial_delay,
-                            retry_delay_strategy=default_retry_delay_strategy(jitter=no_jitter())
+                            retry_delay_strategy=default_retry_delay_strategy(jitter_multiplier=None)
                         ) as client:
                             all = client.all
 
@@ -132,7 +131,7 @@ class TestSSEClientRetryWithDeferConnect:
                 with SSEClient(
                     server.uri,
                     initial_retry_delay=initial_delay,
-                    retry_delay_strategy=default_retry_delay_strategy(jitter=no_jitter()),
+                    retry_delay_strategy=default_retry_delay_strategy(jitter_multiplier=None),
                     retry_filter=retry_for_status(503),
                     defer_connect=True
                 ) as client:

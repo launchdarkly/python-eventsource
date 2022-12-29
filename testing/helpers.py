@@ -1,5 +1,4 @@
 from ld_eventsource import *
-from ld_eventsource.retry import *
 
 from testing.http_util import *
 
@@ -17,5 +16,5 @@ def retry_for_status(status: int) -> RetryFilter:
         return RetryFilterResult(False)
     return apply
 
-def no_delay(params: RetryDelayParams) -> RetryDelayResult:
+def no_delay(base: float) -> RetryDelayResult:
     return RetryDelayResult(0)
