@@ -8,7 +8,7 @@ from ld_eventsource.retry_filter import *
 import logging
 import time
 from typing import Iterable, Iterator, Optional, Union
-from urllib3 import BaseHTTPResponse, PoolManager
+from urllib3 import HTTPResponse, PoolManager
 from urllib3.exceptions import MaxRetryError
 from urllib3.util import Retry
 
@@ -111,7 +111,7 @@ class SSEClient:
         self.__connected_time = 0
 
         self.__closed = False
-        self.__response = None  # type: Optional[BaseHTTPResponse]
+        self.__response = None  # type: Optional[HTTPResponse]
         self.__stream = None  # type: Optional[Iterator[bytes]]
 
         if not defer_connect:
