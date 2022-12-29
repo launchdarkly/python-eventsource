@@ -226,7 +226,7 @@ class SSEClient:
 
         self.__logger.info("Connecting to stream at %s" % params.url)
 
-        resp = None  # type: Optional[HTTPResponse]
+        resp = None  # type: HTTPResponse
         try:
             resp = self.__http.request(
                 'GET',
@@ -235,8 +235,9 @@ class SSEClient:
                 retries=Retry(total=None, read=0, connect=0, status=0, other=0, redirect=3),
                 **request_options)
         except MaxRetryError as e:
-            reason = e.reason  # type: Exception
-            raise reason  # e.reason is the underlying I/O error
+            reason = e.reason  # type: Optional[Exception]
+            if reason is not None:
+                raise reason  # e.reason is the underlying I/O error
         
         if resp.status >= 400 or resp.status == 204:
             raise HTTPStatusError(resp.status)
