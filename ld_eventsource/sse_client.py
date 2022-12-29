@@ -226,7 +226,7 @@ class SSEClient:
 
         self.__logger.info("Connecting to stream at %s" % params.url)
 
-        resp = None
+        resp = None  # type: Optional[HTTPResponse]
         try:
             resp = self.__http.request(
                 'GET',
