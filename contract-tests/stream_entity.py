@@ -45,8 +45,7 @@ class StreamEntity:
                 initial_retry_delay=millis_to_seconds(self.options.get("initialDelayMs")),
                 last_event_id=self.options.get("lastEventId"),
                 error_strategy=lambda _: (ErrorStrategy.FAIL if self.closed else ErrorStrategy.CONTINUE, None),
-                logger=self.log,
-                defer_connect=True
+                logger=self.log
             )
             self.sse = sse
             for item in sse.all:
