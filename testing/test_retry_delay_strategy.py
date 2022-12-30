@@ -1,6 +1,6 @@
 from ld_eventsource.config import *
 
-from typing import Tuple
+from typing import Optional, Tuple
 
 
 def test_backoff_with_no_jitter_and_no_max():

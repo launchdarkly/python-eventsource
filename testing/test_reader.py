@@ -1,4 +1,4 @@
-from ld_eventsource import Comment, Event
+from ld_eventsource.actions import Comment, Event
 from ld_eventsource.reader import _BufferedLineReader, _SSEReader
 
 import pytest
