@@ -1,4 +1,4 @@
-from ld_eventsource.error_strategy import *
+from ld_eventsource.config import *
 
 
 err = Exception("sorry")

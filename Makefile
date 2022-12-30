@@ -1,8 +1,16 @@
 
+PYTEST_FLAGS=-W error::SyntaxWarning
+
+test:
+	pytest $(PYTEST_FLAGS)
+
 lint:
 	mypy --install-types --non-interactive --config-file mypy.ini ld_eventsource testing
 
-.PHONY: lint
+docs:
+	cd docs && make html
+
+.PHONY: test lint docs
 
 TEMP_TEST_OUTPUT=/tmp/sse-contract-test-service.log
 

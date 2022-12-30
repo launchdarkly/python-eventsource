@@ -7,7 +7,7 @@ from typing import Callable, Optional, Tuple
 class RetryDelayStrategy:
     """Base class of strategies for computing how long to wait before retrying a connection.
     
-    The default behavior, provided by :func:`default()`, provides customizable exponential backoff
+    The default behavior, provided by :meth:`default()`, provides customizable exponential backoff
     and jitter. Applications may also create their own subclasses of RetryDelayStrategy if they
     desire different behavior. It is generally a best practice to use backoff and jitter, to avoid
     a reconnect storm during a service interruption.
@@ -36,21 +36,22 @@ class RetryDelayStrategy:
         jitter_multiplier: Optional[float] = None
     ) -> RetryDelayStrategy:
         """
-        Provides the default retry delay behavior for :class:`ld_eventsource.SSEClient`, which includes
+        Provides the default retry delay behavior for :class:`.SSEClient`, which includes
         customizable backoff and jitter options.
 
         The behavior is as follows:
 
-        - Start with the configured base delay as set by the ``initial_retry_delay`` parameter to
-        :class:`ld_eventsource.SSEClient`.
-        - On each subsequent attempt, multiply the base delay by ``backoff_multiplier``, giving the
-        current base delay.
-        - If ``max_delay`` is set and is greater than zero, the base delay is pinned to be no greater
-        than that value.
-        - If ``jitter_multiplier`` is set and is greater than zero, the actual delay for each attempt is
-        equal to the current base delay minus a pseudo-random number equal to that ratio times itself.
-        For instance, a jitter multiplier of 0.25 would mean that a base delay of 1000 is changed to a
-        value in the range [750, 1000].
+        * Start with the configured base delay as set by the ``initial_retry_delay`` parameter to
+          :class:`.SSEClient`.
+        * On each subsequent attempt, multiply the base delay by ``backoff_multiplier``, giving the
+          current base delay.
+        * If ``max_delay`` is set and is greater than zero, the base delay is pinned to be no greater
+          than that value.
+        * If ``jitter_multiplier`` is set and is greater than zero, the actual delay for each attempt is
+          equal to the current base delay minus a pseudo-random number equal to that ratio times itself.
+          For instance, a jitter multiplier of 0.25 would mean that a base delay of 1000 is changed to a
+          value in the range [750, 1000].
+        
         
         :param max_delay: the maximum possible delay value, in seconds; default is 30 seconds
         :param backoff_multiplier: the exponential backoff factor
@@ -131,3 +132,6 @@ class _ReusableRandom:
 
     def random(self) -> float:
         return self.__random.random()
+
+
+__all__ = ['RetryDelayStrategy']

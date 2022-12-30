@@ -1,4 +1,4 @@
-from ld_eventsource.retry_delay_strategy import *
+from ld_eventsource.config import *
 
 from typing import Tuple
 
