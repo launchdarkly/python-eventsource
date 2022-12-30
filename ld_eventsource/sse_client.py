@@ -10,7 +10,7 @@ from typing import Iterable, Optional, Union
 
 class SSEClient:
     """
-    A Server-Sent Events client that uses ``urllib3``.
+    A client for reading a Server-Sent Events stream.
 
     This is a synchronous implementation which blocks the caller's thread when reading events or
     reconnecting. It can be run on a worker thread. The expected usage is to create an ``SSEClient``
@@ -73,7 +73,7 @@ class SSEClient:
         Or, you may provide your own :class:`.ConnectStrategy` implementation to make SSEClient
         read from another source.
 
-        :param connect: either a :class:`ConnectStrategy` instance or a URL string
+        :param connect: either a :class:`.ConnectStrategy` instance or a URL string
         :param initial_retry_delay: the initial delay before reconnecting after a failure,
             in seconds; this can increase as described in :class:`SSEClient`
         :param retry_delay_strategy: allows customization of the delay behavior for retries; if
@@ -260,6 +260,17 @@ class SSEClient:
             self.__current_error_strategy = self.__base_error_strategy
             return None
 
+    @property
+    def last_event_id(self) -> Optional[str]:
+        """
+        The ID value, if any, of the last known event.
+
+        This can be set initially with the ``last_event_id`` parameter to :class:`SSEClient`,
+        and is updated whenever an event is received that has an ID. Whether event IDs are supported
+        depends on the server; it may ignore this value.
+        """
+        return self.__last_event_id
+    
     def __enter__(self):
         return self
 

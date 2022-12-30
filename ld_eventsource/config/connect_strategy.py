@@ -50,10 +50,27 @@ class ConnectStrategy:
 
 
 class ConnectionClient:
+    """
+    An object provided by :class:`.ConnectStrategy` that is retained by a single
+    :class:`.SSEClient` to perform all connection attempts by that instance.
+
+    For the default HTTP implementation, this represents an HTTP connection pool.
+    """
+
     def connect(self, last_event_id: Optional[str]) -> ConnectionResult:
+        """
+        Attempts to connect to a stream. Raises an exception if unsuccessful.
+
+        :param last_event_id: the current value of :attr:`SSEClient.last_event_id`
+        (should be sent to the server to support resuming an interrupted stream)
+        :return: a :class:`ConnectionResult` representing the stream
+        """
         raise NotImplementedError("ConnectionClient base class cannot be used by itself")
     
     def close(self):
+        """
+        Does whatever is necessary to release resources when the SSEClient is closed.
+        """
         pass
 
     def __enter__(self):
