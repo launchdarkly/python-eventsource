@@ -1,5 +1,5 @@
 # type: ignore
-from setuptools import setup, Command
+from setuptools import find_packages, setup, Command
 
 import sys
 
@@ -43,7 +43,7 @@ setup(
     version=package_version,
     author='LaunchDarkly',
     author_email='dev@launchdarkly.com',
-    packages=['ld_eventsource'],
+    packages=find_packages(),
     url='https://github.com/launchdarkly/python-eventsource',
     description='LaunchDarkly SSE Client',
     long_description='LaunchDarkly SSE Client for Python',
