@@ -35,7 +35,7 @@ class StreamEntity:
         stream_url = self.options["streamUrl"]
         try:
             self.log.info('Opening stream from %s', stream_url)
-            request = RequestParams(
+            connect = ConnectStrategy.http(
                 url=stream_url,
                 headers=self.options.get("headers"),
                 urllib3_request_options=None if self.options.get("readTimeoutMs") is None else {
@@ -43,7 +43,7 @@ class StreamEntity:
                 }
             )                    
             sse = SSEClient(
-                request,
+                connect,
                 initial_retry_delay=millis_to_seconds(self.options.get("initialDelayMs")),
                 last_event_id=self.options.get("lastEventId"),
                 error_strategy=ErrorStrategy.from_lambda(lambda _:
