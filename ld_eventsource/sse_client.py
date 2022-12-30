@@ -4,7 +4,6 @@ from ld_eventsource.error_strategy import *
 from ld_eventsource.reader import _BufferedLineReader, _SSEReader
 from ld_eventsource.request_params import *
 from ld_eventsource.retry_delay_strategy import RetryDelayStrategy
-from ld_eventsource.retry_filter import *
 
 import logging
 import time
@@ -27,7 +26,7 @@ class SSEClient:
     that the client will attempt to reconnect as many times as necessary if a connection is
     dropped or cannot be made; but if a connection is made and returns an invalid response
     (non-2xx status, 204 status, or invalid content type), it will not retry. This behavior can
-    be customized with `retry_filter`. The client will automatically follow 3xx redirects.
+    be customized with `error_strategy`. The client will automatically follow 3xx redirects.
     
     For any non-retryable error, if this is the first connection attempt then the constructor
     will throw an exception (such as :class:`ld_eventsource.HTTPStatusError`). Or, if a
