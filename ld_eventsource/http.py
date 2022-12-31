@@ -72,7 +72,7 @@ class _HttpClientImpl:
                 raise reason  # e.reason is the underlying I/O error        
         if resp.status >= 400 or resp.status == 204:
             raise HTTPStatusError(resp.status)
-        content_type = resp.getheader('Content-Type')
+        content_type = resp.headers.get('Content-Type', None)
         if content_type is None or not str(content_type).startswith("text/event-stream"):
             raise HTTPContentTypeError(content_type or '')
 
