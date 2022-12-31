@@ -108,8 +108,9 @@ class SSEClient:
         self.__logger = logger
       
         self.__connection_client = connect.create_client(logger)
-        self.__connection_result = None  # type: Optional[ConnectionResult]
-        self.__connected_time = self.__disconnected_time = 0  # type: float
+        self.__connection_result: Optional[ConnectionResult] = None
+        self.__connected_time: float = 0
+        self.__disconnected_time: float = 0
 
         self.__closed = False
 
@@ -168,7 +169,7 @@ class SSEClient:
             
             lines = _BufferedLineReader.lines_from(self.__connection_result.stream)
             reader = _SSEReader(lines, self.__last_event_id, None)
-            error = None  # type: Optional[Exception]
+            error: Optional[Exception] = None
             try:
                 for ec in reader.events_and_comments:
                     yield ec

@@ -78,7 +78,7 @@ def verify_jitter(strategy: RetryDelayStrategy, base: float, base_with_backoff: 
     # We can't 100% prove that it's using the expected jitter ratio, since the result
     # is pseudo-random, but we can at least prove that repeated computations don't
     # fall outside the expected range and aren't all equal.
-    last_result = None  # type: Optional[Tuple[float, Optional[RetryDelayStrategy]]]
+    last_result: Optional[Tuple[float, Optional[RetryDelayStrategy]]] = None
     at_least_one_was_different = False
     for i in range(100):
         result = strategy.apply(base)
