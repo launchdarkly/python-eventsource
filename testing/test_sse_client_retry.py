@@ -97,3 +97,38 @@ def test_all_iterator_continues_after_retry():
         assert isinstance(item6, Fault)
         assert item6.error is None
         assert client.next_retry_delay == initial_delay * 2
+
+def test_can_interrupt_and_restart_stream():
+    initial_delay = 0.005
+    mock = MockConnectStrategy(
+        RespondWithData("data: data1\n\ndata: data2\n\n"),
+        RespondWithData("data: data3\n\n"),
+        ExpectNoMoreRequests(),
+    )
+    with SSEClient(
+        connect=mock,
+        error_strategy=ErrorStrategy.always_continue(),
+        initial_retry_delay=initial_delay,
+        retry_delay_strategy=RetryDelayStrategy.default(jitter_multiplier=None)
+    ) as client:
+        all = client.all
+
+        item1 = next(all)
+        assert isinstance(item1, Start)
+
+        item2 = next(all)
+        assert isinstance(item2, Event)
+        assert item2.data == 'data1'
+
+        client.interrupt()
+        assert client.next_retry_delay == initial_delay
+
+        item3 = next(all)
+        assert isinstance(item3, Fault)
+        
+        item4 = next(all)
+        assert isinstance(item4, Start)
+        
+        item5 = next(all)
+        assert isinstance(item5, Event)
+        assert item5.data == 'data3'

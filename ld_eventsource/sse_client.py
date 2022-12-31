@@ -113,6 +113,7 @@ class SSEClient:
         self.__disconnected_time: float = 0
 
         self.__closed = False
+        self.__interrupted = False
 
     def start(self):
         """
@@ -140,11 +141,23 @@ class SSEClient:
         Permanently shuts down this client instance and closes any active connection.
         """
         self.__closed = True
+        self.interrupt()
+    
+    def interrupt(self):
+        """
+        Stops the stream connection if it is currently active.
+
+        The difference between this method and :meth:`close()` is that this method does not
+        permanently shut down the :class:`SSEClient`. If you try to read more events or call
+        :meth:`start()`, the client will try to reconnect to the stream. The behavior is
+        exactly the same as if the previous stream had been ended by the server.
+        """
         if self.__connection_result:
+            self.__interrupted = True
             self.__connection_result.close()
             self.__connection_result = None
-        self.__connection_client.close()
-    
+            self._compute_next_retry_delay()
+
     @property
     def all(self) -> Iterable[Action]:
         """
@@ -173,6 +186,8 @@ class SSEClient:
             try:
                 for ec in reader.events_and_comments:
                     yield ec
+                    if self.__interrupted:
+                        break
                 # If we finished iterating all of reader.events_and_comments, it means the stream
                 # was closed without an error.
                 self.__connection_result = None
@@ -259,6 +274,7 @@ class SSEClient:
                 continue
             self.__connected_time = time.time()
             self.__current_error_strategy = self.__base_error_strategy
+            self.__interrupted = False
             return None
 
     @property
