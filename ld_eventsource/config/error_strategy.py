@@ -4,26 +4,27 @@ from typing import Callable, Optional, Tuple
 
 
 class ErrorStrategy:
-    """Base class of strategies for determining how SSEClient should handle a stream error or the
+    """
+    Base class of strategies for determining how SSEClient should handle a stream error or the
     end of a stream.
     
-    The parameter that SSEClient passes to :func:`apply()` is either ``None`` if the server ended
+    The parameter that SSEClient passes to :meth:`apply()` is either ``None`` if the server ended
     the stream normally, or an exception. If it is an exception, it could be an I/O exception
     (failure to connect, broken connection, etc.), or one of the error types defined in this
-    package such as :class:`ldeventsource.HTTPStatusError`.
+    package such as :class:`.HTTPStatusError`.
 
     The two options for the result are:
 
-    - :const:`FAIL`: This means that SSEClient should throw an exception to the caller-- or, in
+    * :const:`FAIL`: This means that SSEClient should throw an exception to the caller-- or, in
       the case of a stream ending without an error, it should simply stop iterating through events.
-    - :const:`CONTINUE`: This means that you intend to keep reading events, so SSEClient should
-      transparently retry the connection. If you are reading from :prop:`ld_eventsource.SSEClient.all`,
-      you will also receive a :class:`ld_eventsource.Fault` describing the error.
+    * :const:`CONTINUE`: This means that you intend to keep reading events, so SSEClient should
+      transparently retry the connection. If you are reading from :attr:`.SSEClient.all`,
+      you will also receive a :class:`.Fault` describing the error.
 
     With either option, it is still always possible to explicitly reconnect the stream by calling
-    :func:`ld_eventsource.SSEClient.start()` again, or simply by trying to read from
-    :prop:`ld_eventsource.SSEClient.events` or :prop:`ld_eventsource.SSEClient.all` again.
-
+    :meth:`.SSEClient.start()` again, or simply by trying to read from :attr:`.SSEClient.events`
+    or :attr:`.SSEClient.all` again.
+    
     Subclasses should be immutable. To implement strategies that behave differently on consecutive
     retries, the strategy should return a new instance of its own class as the second return value
     from ``apply``, rather than modifying the state of the existing instance. This makes it easy
@@ -37,8 +38,7 @@ class ErrorStrategy:
     def apply(self, exception: Optional[Exception]) -> Tuple[bool, ErrorStrategy]:
         """Applies the strategy to determine what to do after a failure.
 
-        :param exception: an I/O error, or one of the exception types defined by this package
-            (such as :class:`ldeventsource.HTTPStatusError`), or None if the stream simply ended
+        :param exception: an exception, or ``None`` if the stream simply ended
         :return: a tuple where the first element is either :const:`FAIL` to raise an exception
             or :const:`CONTINUE` to continue, and the second element is the strategy object to
             use next time (which could be ``self``)
@@ -57,8 +57,7 @@ class ErrorStrategy:
     def always_continue() -> ErrorStrategy:
         """
         Specifies that SSEClient should never raise an exception, but should transparently retry
-        or, if :prop:`ld_eventsource.SSEClient.all` is being used, return the error as a
-        :class:`ld_eventsource.Fault`.
+        or, if :attr:`.SSEClient.all` is being used, return the error as a :class:`.Fault`.
 
         Be aware that using this mode could cause connection attempts to block indefinitely if
         the server is unavailable.
@@ -126,3 +125,6 @@ class _TimeLimitErrorStrategy(ErrorStrategy):
         if (time.time() - self.__start_time) < self.__max_time:
             return (ErrorStrategy.CONTINUE, self)
         return (ErrorStrategy.FAIL, self)
+
+
+__all__ = ['ErrorStrategy']

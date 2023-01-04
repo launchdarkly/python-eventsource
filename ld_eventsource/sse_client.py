@@ -1,9 +1,8 @@
 from ld_eventsource.actions import *
 from ld_eventsource.errors import *
-from ld_eventsource.error_strategy import *
+from ld_eventsource.config import *
 from ld_eventsource.reader import _BufferedLineReader, _SSEReader
 from ld_eventsource.request_params import *
-from ld_eventsource.retry_delay_strategy import RetryDelayStrategy
 
 import logging
 import time
@@ -15,38 +14,32 @@ from urllib3.util import Retry
 
 class SSEClient:
     """
-    A Server-Sent Events client that uses `urllib3`.
+    A Server-Sent Events client that uses ``urllib3``.
 
     This is a synchronous implementation which blocks the caller's thread when reading events or
     reconnecting. It can be run on a worker thread. The expected usage is to create an `SSEClient`
-    instance, then read from it using the iterator properties :prop:`events` or :prop:`all`.
+    instance, then read from it using the iterator properties :attr:`events` or :attr:`all`.
     
     Connection failures and error responses can be handled in various ways depending on the
     constructor parameters. The default behavior, if no non-default parameters are passed, is
     that the client will attempt to reconnect as many times as necessary if a connection is
     dropped or cannot be made; but if a connection is made and returns an invalid response
     (non-2xx status, 204 status, or invalid content type), it will not retry. This behavior can
-    be customized with `error_strategy`. The client will automatically follow 3xx redirects.
+    be customized with ``error_strategy``. The client will automatically follow 3xx redirects.
     
     For any non-retryable error, if this is the first connection attempt then the constructor
-    will throw an exception (such as :class:`ld_eventsource.HTTPStatusError`). Or, if a
+    will throw an exception (such as :class:`.HTTPStatusError`). Or, if a
     successful connection was made so the constructor has already returned, but a
     non-retryable error occurs subsequently, the iterator properties will simply run out of
-    values to indicate that the `SSEClient` is finished (if you are reading :prop:`all`, it will
-    first yield a :class:`ld_eventsource.Fault` to indicate what the error was).
+    values to indicate that the ``SSEClient`` is finished (if you are reading :attr:`all`, it will
+    first yield a :class:`.Fault` to indicate what the error was).
 
     To avoid flooding the server with requests, it is desirable to have a delay before each
-    reconnection. There is a base delay set by `initial_retry_delay` (which can be overridden
-    by the stream if the server sends a `retry:` line). By default, as defined by
-    :func:`ld_eventsource.RetryDelayStrategy.default())`, this delay will double with each
-    subsequent retry, and will also have a pseudo-random jitter added. You can customize this
-    behavior with `retry_delay_strategy`.
-
-    If the application wants to track every state change, including retries of the initial
-    connection, then pass `True` for `defer_connect`, causing the constructor to return
-    immediately and defer the first connection attempt until you start reading from the client.
-    This way, if you are reading from :prop:`all`, you can see any :class:`ld_eventsource.Fault`
-    conditions that might occur before the first successful connection.
+    reconnection. There is a base delay set by ``initial_retry_delay`` (which can be overridden
+    by the stream if the server sends a ``retry:`` line). By default, as defined by
+    :meth:`.RetryDelayStrategy.default()`, this delay will double with each subsequent retry,
+    and will also have a pseudo-random jitter subtracted. You can customize this behavior with
+    ``retry_delay_strategy``.
     """
 
     chunk_size = 10000
@@ -63,19 +56,23 @@ class SSEClient:
         logger: Optional[logging.Logger]=None
     ):
         """
-        Creates a client instance and attempts to connect to the stream.
+        Creates a client instance.
+
+        The client is created in an inactive state. It will not try to make a stream connection
+        until either you call :meth:`start()`, or you attempt to read events from
+        :attr:`events` or :attr:`all`.
 
         :param request: either a stream URL or a :class:`RequestParams` instance
         :param initial_retry_delay: the initial delay before reconnecting after a failure,
             in seconds; this can increase as described in :class:`SSEClient`
         :param retry_delay_strategy: allows customization of the delay behavior for retries; if
-            not specified, uses :func:`ld_eventsource.RetryDelayStrategy.default()`
+            not specified, uses :meth:`.RetryDelayStrategy.default()`
         :param retry_delay_reset_threshold: the minimum amount of time that a connection must
             stay open before the SSEClient resets its retry delay strategy
         :param error_strategy: allows customization of the behavior after a stream failure; if
-            not specified: uses :func:`ld_eventsource.ErrorStrategy.always_throw()`
-        :param last_event_id: if provided, the `Last-Event-Id` value will be preset to this
-        :param http_pool: optional urllib3 `PoolManager` to provide an HTTP client
+            not specified: uses :meth:`.ErrorStrategy.always_fail()`
+        :param last_event_id: if provided, the ``Last-Event-Id`` value will be preset to this
+        :param http_pool: optional urllib3 ``PoolManager`` to provide an HTTP client
         :param logger: if provided, log messages will be written here
         """
         if isinstance(request, RequestParams):
@@ -118,14 +115,14 @@ class SSEClient:
         If there is not an active stream connection, this method attempts to start one using
         the previously configured parameters. If successful, it returns and you can proceed
         to read events. You should only read events on the same thread where you called
-        :func:`start()`.
+        :meth:`start()`.
 
-        If the connection fails, the behavior depends on the configured :class:`ErrorStrategy`.
+        If the connection fails, the behavior depends on the configured :class:`.ErrorStrategy`.
         The default strategy is to raise an exception, but you can configure it to continue
-        instead, in which case :func:`start()` will keep retrying until the :class:`ErrorStrategy`
+        instead, in which case :meth:`start()` will keep retrying until the :class:`.ErrorStrategy`
         says to give up.
 
-        If the stream was previously active and then failed, :func:`start()` will sleep for
+        If the stream was previously active and then failed, :meth:`start()` will sleep for
         some amount of time-- the retry delay-- before trying to make the connection. The
         retry delay is determined by the ``initial_retry_delay``, ``retry_delay_strategy``,
         and ``retry_delay_reset_threshold`` parameters to :class:`SSEClient`.
@@ -145,17 +142,15 @@ class SSEClient:
     @property
     def all(self) -> Iterable[Action]:
         """
-        An iterable series of notifications from the stream. Each of these can be any of the following:
+        An iterable series of notifications from the stream.
         
-        * :class:`ld_eventsource.Event`
-        * :class:`ld_eventsource.Comment`
-        * :class:`ld_eventsource.Start`
-        * :class:`ld_eventsource.Fault`
+        Each of these can be any subclass of :class:`.Action`: :class:`.Event`, :class:`.Comment`,
+        :class:`.Start`, or :class:`.Fault`.
 
-        You can use :prop:`events` instead if you are only interested in Events.
+        You can use :attr:`events` instead if you are only interested in Events.
 
         Iterating over this property automatically starts or restarts the stream if it is not
-        already active, so you do not need to call :func:`start()` unless you want to verify that
+        already active, so you do not need to call :meth:`start()` unless you want to verify that
         the stream is connected before trying to read events.
         """
         while True:
@@ -199,12 +194,12 @@ class SSEClient:
     @property
     def events(self) -> Iterable[Event]:
         """
-        An iterable series of :class:`ld_eventsource.Event` objects received from the stream.
+        An iterable series of :class:`.Event` objects received from the stream.
 
-        Use :prop:`all` instead if you also want to know about other kinds of occurrences.
+        Use :attr:`all` instead if you also want to know about other kinds of occurrences.
 
         Iterating over this property automatically starts or restarts the stream if it is not
-        already active, so you do not need to call :func:`start()` unless you want to verify that
+        already active, so you do not need to call :meth:`start()` unless you want to verify that
         the stream is connected before trying to read events.
         """
         for item in self.all:
@@ -218,11 +213,10 @@ class SSEClient:
         has failed or ended.
         
         This is initially zero, because SSEClient does not compute a retry delay until there is
-        a failure. If you have just received an exception or a :class:`ldeventsource.Fault`, or
-        if you were iterating through events and the events ran out because the stream closed,
-        this value tells you how long EventSource will sleep before the next reconnection
-        attempt. The value is computed by applying the configured
-        :class:`ld_eventsource.RetryDelayStrategy` to the base retry delay.
+        a failure. If you have just received an exception or a :class:`.Fault`, or if you were
+        iterating through events and the events ran out because the stream closed, the value
+        tells you how long SSEClient will sleep before the next reconnection attempt. The value
+        is computed by applying the configured :class:`.RetryDelayStrategy` to the base retry delay.
         """
         return self.__next_retry_delay
     
@@ -301,3 +295,6 @@ class SSEClient:
 
     def __exit__(self, type, value, traceback):
         self.close()
+
+
+__all__ = ['SSEClient']

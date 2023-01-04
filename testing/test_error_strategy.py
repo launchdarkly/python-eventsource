@@ -1,4 +1,6 @@
-from ld_eventsource.error_strategy import *
+from ld_eventsource.config import *
+
+import time
 
 
 err = Exception("sorry")

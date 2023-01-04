@@ -3,10 +3,10 @@ from typing import Optional
 
 class RequestParams:
     """
-    Parameters telling :class:`ld_eventsource.SSEClient` how to connect to a stream.
+    Parameters telling :class:`.SSEClient` how to connect to a stream.
 
-    When calling the :class:`ld_eventsource.SSEClient` constructor, you can pass a
-    `RequestParams` instance for the first parameter instead of a simple URL string.
+    When calling the :class:`.SSEClient` constructor, you can pass a ``RequestParams`` instance
+    for the first parameter instead of a simple URL string.
     """
     def __init__(
         self,
@@ -35,7 +35,7 @@ class RequestParams:
     @property
     def urllib3_request_options(self) -> Optional[dict]:
         """
-        Optional `kwargs` to add to the `urllib3.request` call. These can include any parameters
-        supported by `urllib3.request`, such as `timeout`.
+        Optional ``kwargs`` to add to the ``urllib3.request`` call. These can include any parameters
+        supported by ``urllib3.request``, such as ``timeout``.
         """
         return self.__urllib3_request_options

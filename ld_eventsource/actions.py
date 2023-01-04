@@ -3,15 +3,18 @@ from typing import Optional
 
 
 class Action:
+    """
+    Base class for objects that can be returned by :attr:`.SSEClient.all`.
+    """
     pass
 
 
 class Event(Action):
     """
-    An event received by :class:`ld_eventsource.SSEClient`.
+    An event received by :class:`.SSEClient`.
 
-    Instances of this class are returned by both :prop:`ld_eventsource.SSEClient.events` and
-    :prop:`ld_eventsource.SSEClient.all`.
+    Instances of this class are returned by both :attr:`.SSEClient.events` and
+    :attr:`.SSEClient.all`.
     """
     def __init__(self,
         event: str='message',
@@ -41,14 +44,14 @@ class Event(Action):
     @property
     def id(self) -> Optional[str]:
         """
-        The value of the `id:` field for this event, or `None` if omitted.
+        The value of the ``id:`` field for this event, or `None` if omitted.
         """
         return self._id
 
     @property
     def last_event_id(self) -> Optional[str]:
         """
-        The value of the most recent `id:` field of an event seen in this stream so far.
+        The value of the most recent ``id:`` field of an event seen in this stream so far.
         """
         return self._last_event_id
 
@@ -69,11 +72,11 @@ class Event(Action):
 
 class Comment(Action):
     """
-    A comment received by :class:`ld_eventsource.SSEClient`.
+    A comment received by :class:`.SSEClient`.
     
     Comment lines (any line beginning with a colon) have no significance in the SSE specification
-    and can be ignored, but if you want to see them, use :prop:`ld_eventsource.SSEClient.all`.
-    They will never be returned by :prop:`ld_eventsource.SSEClient.events`.
+    and can be ignored, but if you want to see them, use :attr:`.SSEClient.all`. They will never
+    be returned by :attr:`.SSEClient.events`.
     """
     
     def __init__(self, comment: str):
@@ -95,26 +98,25 @@ class Comment(Action):
 
 class Start(Action):
     """
-    Indicates that :class:`ld_eventsource.SSEClient` has successfully connected to a stream.
+    Indicates that :class:`.SSEClient` has successfully connected to a stream.
 
-    Instances of this class are only available from :prop:`ld_eventsource.SSEClient.all`.
-    A `Start` is returned for the first successful connection. If the client reconnects
-    after a failure, there will be a :class:`ld_eventsource.Fault` followed by a
-    `Start`.    
+    Instances of this class are only available from :attr:`.SSEClient.all`.
+    A ``Start`` is returned for the first successful connection. If the client reconnects
+    after a failure, there will be a :class:`.Fault` followed by a ``Start``.
     """
     pass
 
 
 class Fault(Action):
     """
-    Indicates that :class:`ld_eventsource.SSEClient` encountered an error or end of stream.
+    Indicates that :class:`.SSEClient` encountered an error or end of stream.
 
-    Instances of this class are only available from :prop:`ld_eventsource.SSEClient.all`.
+    Instances of this class are only available from :attr:`.SSEClient.all`.
 
     If you receive a Fault, the SSEClient is now in an inactive state since either a
     connection attempt has failed or an existing connection has been closed. The SSEClient
-    will attempt to reconnect if you either call :func:`start()` or simply continue reading
-    events after this point.
+    will attempt to reconnect if you either call :meth:`.SSEClient.start()`
+    or simply continue reading events after this point.
     """
 
     def __init__(self, error: Optional[Exception]):
@@ -123,7 +125,7 @@ class Fault(Action):
     @property
     def error(self) -> Optional[Exception]:
         """
-        The exception that caused the stream to fail, if any. If this is `None`, it means
+        The exception that caused the stream to fail, if any. If this is ``None``, it means
         that the stream simply ran out of data, i.e. the server shut down the connection
         in an orderly way after sending an EOF chunk as defined by chunked transfer encoding.
         """
