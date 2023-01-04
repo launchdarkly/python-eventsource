@@ -2,24 +2,23 @@ from ld_eventsource.actions import *
 from ld_eventsource.errors import *
 from ld_eventsource.config import *
 from ld_eventsource.reader import _BufferedLineReader, _SSEReader
-from ld_eventsource.request_params import *
 
 import logging
 import time
-from typing import Iterable, Iterator, Optional, Union
-from urllib3 import HTTPResponse, PoolManager
-from urllib3.exceptions import MaxRetryError
-from urllib3.util import Retry
+from typing import Iterable, Optional, Union
 
 
 class SSEClient:
     """
-    A Server-Sent Events client that uses ``urllib3``.
+    A client for reading a Server-Sent Events stream.
 
     This is a synchronous implementation which blocks the caller's thread when reading events or
-    reconnecting. It can be run on a worker thread. The expected usage is to create an `SSEClient`
+    reconnecting. It can be run on a worker thread. The expected usage is to create an ``SSEClient``
     instance, then read from it using the iterator properties :attr:`events` or :attr:`all`.
     
+    By default, ``SSEClient`` uses ``urllib3`` to make HTTP requests to an SSE endpoint. You can
+    customize this behavior using :class:`.ConnectStrategy`.
+
     Connection failures and error responses can be handled in various ways depending on the
     constructor parameters. The default behavior, if no non-default parameters are passed, is
     that the client will attempt to reconnect as many times as necessary if a connection is
@@ -42,17 +41,14 @@ class SSEClient:
     ``retry_delay_strategy``.
     """
 
-    chunk_size = 10000
-
     def __init__(
         self, 
-        request: Union[str, RequestParams],
+        connect: Union[str, ConnectStrategy],
         initial_retry_delay: float=1,
         retry_delay_strategy: Optional[RetryDelayStrategy]=None,
         retry_delay_reset_threshold: float=60,
         error_strategy: Optional[ErrorStrategy]=None,
         last_event_id: Optional[str]=None,
-        http_pool: Optional[PoolManager]=None,
         logger: Optional[logging.Logger]=None
     ):
         """
@@ -62,7 +58,22 @@ class SSEClient:
         until either you call :meth:`start()`, or you attempt to read events from
         :attr:`events` or :attr:`all`.
 
-        :param request: either a stream URL or a :class:`RequestParams` instance
+        For the default HTTP behavior, you may pass a URL string for ``connect``; this is
+        equivalent to ``connect=ConnectStrategy.http(url)``. To set custom HTTP options, call
+        :meth:`.ConnectStrategy.http()` directly:
+        ::
+
+            sse_client = SSEClient(
+                connect=ConnectStrategy.http(
+                    url="https://my-sse-server.com",
+                    headers={"Authorization": "abcdef"}
+                )
+            )
+
+        Or, you may provide your own :class:`.ConnectStrategy` implementation to make SSEClient
+        read from another source.
+
+        :param connect: either a :class:`.ConnectStrategy` instance or a URL string
         :param initial_retry_delay: the initial delay before reconnecting after a failure,
             in seconds; this can increase as described in :class:`SSEClient`
         :param retry_delay_strategy: allows customization of the delay behavior for retries; if
@@ -72,16 +83,13 @@ class SSEClient:
         :param error_strategy: allows customization of the behavior after a stream failure; if
             not specified: uses :meth:`.ErrorStrategy.always_fail()`
         :param last_event_id: if provided, the ``Last-Event-Id`` value will be preset to this
-        :param http_pool: optional urllib3 ``PoolManager`` to provide an HTTP client
         :param logger: if provided, log messages will be written here
         """
-        if isinstance(request, RequestParams):
-            self.__request_params = request  # type: RequestParams
-        elif isinstance(request, str):
-            self.__request_params = RequestParams(url=request)
-        else:
-            raise TypeError("request must be either a string or RequestParams")
-
+        if isinstance(connect, str):
+            connect = ConnectStrategy.http(connect)
+        elif not isinstance(connect, ConnectStrategy):
+            raise TypeError("request must be either a string or ConnectStrategy")
+        
         self.__base_retry_delay = initial_retry_delay
         self.__base_retry_delay_strategy = retry_delay_strategy or RetryDelayStrategy.default()
         self.__retry_delay_reset_threshold = retry_delay_reset_threshold
@@ -93,20 +101,19 @@ class SSEClient:
         
         self.__last_event_id = last_event_id
 
-        self.__http = http_pool or PoolManager()
-        self.__http_should_close = (http_pool is None)
-        
         if logger is None:
             logger = logging.getLogger('launchdarkly-eventsource.null')
             logger.addHandler(logging.NullHandler())
             logger.propagate = False
         self.__logger = logger
       
-        self.__connected_time = self.__disconnected_time = 0  # type: float
+        self.__connection_client = connect.create_client(logger)
+        self.__connection_result: Optional[ConnectionResult] = None
+        self.__connected_time: float = 0
+        self.__disconnected_time: float = 0
 
         self.__closed = False
-        self.__response = None  # type: Optional[HTTPResponse]
-        self.__stream = None  # type: Optional[Iterator[bytes]]
+        self.__interrupted = False
 
     def start(self):
         """
@@ -134,11 +141,23 @@ class SSEClient:
         Permanently shuts down this client instance and closes any active connection.
         """
         self.__closed = True
-        if self.__response:
-            self.__response.release_conn()
-        if self.__http_should_close:
-            self.__http.clear()
+        self.interrupt()
     
+    def interrupt(self):
+        """
+        Stops the stream connection if it is currently active.
+
+        The difference between this method and :meth:`close()` is that this method does not
+        permanently shut down the :class:`SSEClient`. If you try to read more events or call
+        :meth:`start()`, the client will try to reconnect to the stream. The behavior is
+        exactly the same as if the previous stream had been ended by the server.
+        """
+        if self.__connection_result:
+            self.__interrupted = True
+            self.__connection_result.close()
+            self.__connection_result = None
+            self._compute_next_retry_delay()
+
     @property
     def all(self) -> Iterable[Action]:
         """
@@ -156,26 +175,28 @@ class SSEClient:
         while True:
             # Reading implies starting the stream if it isn't already started. We might also
             # be restarting since we could have been interrupted at any time.
-            while self.__stream is None:
+            while self.__connection_result is None:
                 fault = self._try_start(True)
                 # return either a Start action or a Fault action
                 yield Start() if fault is None else fault
             
-            lines = _BufferedLineReader.lines_from(self.__stream)
+            lines = _BufferedLineReader.lines_from(self.__connection_result.stream)
             reader = _SSEReader(lines, self.__last_event_id, None)
-            error = None  # type: Optional[Exception]
+            error: Optional[Exception] = None
             try:
                 for ec in reader.events_and_comments:
                     yield ec
+                    if self.__interrupted:
+                        break
                 # If we finished iterating all of reader.events_and_comments, it means the stream
                 # was closed without an error.
-                self.__stream = None
+                self.__connection_result = None
             except Exception as e:
                 if self.__closed:
                     # It's normal to get an I/O error if we force-closed the stream to shut down
                     return
                 error = e
-                self.__stream = None
+                self.__connection_result = None
             finally:
                 self.__last_event_id = reader.last_event_id
 
@@ -229,7 +250,7 @@ class SSEClient:
             self.__current_retry_delay_strategy.apply(self.__base_retry_delay)
 
     def _try_start(self, can_return_fault: bool) -> Optional[Fault]:
-        if self.__stream is not None:
+        if self.__connection_result is not None:
             return None
         while True:
             if self.__next_retry_delay > 0:
@@ -238,10 +259,8 @@ class SSEClient:
                 if delay > 0:
                     self.__logger.info("Will reconnect after delay of %fs" % delay)
                     time.sleep(delay)
-
-            self.__logger.info("Connecting to stream at %s" % self.__request_params.url)
             try:
-                resp = self._do_request()
+                self.__connection_result = self.__connection_client.connect(self.__last_event_id)
             except Exception as e:
                 self.__disconnected_time = time.time()
                 self._compute_next_retry_delay()
@@ -253,43 +272,22 @@ class SSEClient:
                 # If can_return_fault is false, it means the caller explicitly called start(), in
                 # which case there's no way to return a Fault so we just keep retrying transparently.
                 continue
-
-            self.__response = resp
             self.__connected_time = time.time()
-            self.__stream = resp.stream(amt=self.chunk_size)
             self.__current_error_strategy = self.__base_error_strategy
+            self.__interrupted = False
             return None
 
-    def _do_request(self) -> HTTPResponse:
-        params = self.__request_params
-        headers = params.headers.copy() if params.headers else {}
-        headers['Cache-Control'] = 'no-cache'
-        headers['Accept'] = 'text/event-stream'
+    @property
+    def last_event_id(self) -> Optional[str]:
+        """
+        The ID value, if any, of the last known event.
 
-        if self.__last_event_id:
-            headers['Last-Event-ID'] = self.__last_event_id
-
-        request_options = params.urllib3_request_options.copy() if params.urllib3_request_options else {}
-        request_options['headers'] = headers
-
-        try:
-            resp = self.__http.request(
-                'GET',
-                params.url,
-                preload_content=False,
-                retries=Retry(total=None, read=0, connect=0, status=0, other=0, redirect=3),
-                **request_options)
-        except MaxRetryError as e:
-            reason = e.reason  # type: Optional[Exception]
-            if reason is not None:
-                raise reason  # e.reason is the underlying I/O error        
-        if resp.status >= 400 or resp.status == 204:
-            raise HTTPStatusError(resp.status)
-        content_type = resp.getheader('Content-Type')
-        if content_type is None or not str(content_type).startswith("text/event-stream"):
-            raise HTTPContentTypeError(content_type or '')
-        return resp
-
+        This can be set initially with the ``last_event_id`` parameter to :class:`SSEClient`,
+        and is updated whenever an event is received that has an ID. Whether event IDs are supported
+        depends on the server; it may ignore this value.
+        """
+        return self.__last_event_id
+    
     def __enter__(self):
         return self
 

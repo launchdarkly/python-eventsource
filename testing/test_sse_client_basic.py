@@ -3,173 +3,89 @@ from ld_eventsource.actions import *
 from ld_eventsource.config import *
 
 from testing.helpers import *
-from testing.http_util import *
 
 import pytest
-from urllib3.exceptions import ProtocolError
 
+# Tests for SSEClient's basic properties and parsing behavior. These tests do not use real HTTP
+# requests; instead, they use a ConnectStrategy that provides a preconfigured input stream. HTTP
+# functionality is tested separately in test_http_connect_strategy.py and
+# test_http_connect_strategy_with_sse_client.py.
 
-# These tests for SSEClient are fairly basic, just ensuring that it is really making HTTP requests and that 
-# the API works as expected. The contract test suite is much more thorough - see ../contract-tests.
+@pytest.mark.parametrize('explicitly_start', [False, True])
+def test_receives_events(explicitly_start: bool):
+    mock = MockConnectStrategy(
+        RespondWithData("event: event1\ndata: data1\n\n:whatever\nevent: event2\ndata: data2\n\n")
+    )
+    with SSEClient(connect=mock) as client:
+        if explicitly_start:
+            client.start()  # shouldn't make a difference if we're just reading events
 
+        events = client.events
 
-class TestSSEClientHTTPBehavior:
-    def test_sends_expected_headers(self):
-        with start_server() as server:
-            with make_stream() as stream:
-                server.for_path('/', stream)
-                with SSEClient(server.uri) as client:
-                    client.start()
-                    r = server.await_request()
-                    assert r.headers['Accept'] == 'text/event-stream'
-                    assert r.headers['Cache-Control'] == 'no-cache'
+        event1 = next(events)
+        assert event1.event == 'event1'
+        assert event1.data == 'data1'
 
-    def test_http_status_error(self):
-        with start_server() as server:
-            server.for_path('/', BasicResponse(400))
-            try:
-                with SSEClient(server.uri) as client:
-                    client.start()
-                raise Exception("expected exception, did not get one")
-            except HTTPStatusError as e:
-                assert e.status == 400
+        event2 = next(events)
+        assert event2.event == 'event2'
+        assert event2.data == 'data2'
 
-    def test_http_content_type_error(self):
-        with start_server() as server:
-            with ChunkedResponse({ 'Content-Type': 'text/plain' }) as stream:
-                server.for_path('/', stream)
-                try:
-                    with SSEClient(server.uri) as client:
-                        client.start()
-                    raise Exception("expected exception, did not get one")
-                except HTTPContentTypeError as e:
-                    assert e.content_type == "text/plain"
-    
-    def test_non_retryable_io_error(self):
-        with start_server() as server:
-            server.for_path('/', CauseNetworkError())
-            try:
-                with SSEClient(server.uri) as client:
-                    client.start()
-                raise Exception("expected exception, did not get one")
-            except ProtocolError as e:
-                pass
-    
-    def test_auto_redirect_301(self):
-        with start_server() as server:
-            with make_stream() as stream:
-                server.for_path('/', BasicResponse(301, None, {'Location': server.uri + '/real-stream'}))
-                server.for_path('/real-stream', stream)
-                with SSEClient(server.uri) as client:
-                    client.start()
-            server.await_request()
-            server.await_request()
-    
-    def test_auto_redirect_307(self):
-        with start_server() as server:
-            with make_stream() as stream:
-                server.for_path('/', BasicResponse(307, None, {'Location': server.uri + '/real-stream'}))
-                server.for_path('/real-stream', stream)
-                with SSEClient(server.uri) as client:
-                    client.start()
-            server.await_request()
-            server.await_request()
+def test_events_returns_eof_when_stream_ends():
+    mock = MockConnectStrategy(
+        RespondWithData("event: event1\ndata: data1\n\n")
+    )
+    with SSEClient(connect=mock) as client:
+        events = client.events
 
+        event1 = next(events)
+        assert event1.event == 'event1'
+        assert event1.data == 'data1'
 
-class TestSSEClientEventsStream:
-    @pytest.mark.parametrize('explicitly_start', [False, True])
-    def test_receives_events(self, explicitly_start: bool):
-        with start_server() as server:
-            with make_stream() as stream:
-                server.for_path('/', stream)
+        event2 = next(events, "done")
+        assert event2 == "done"
 
-                with SSEClient(server.uri) as client:
-                    if explicitly_start:
-                        client.start()  # shouldn't make a difference if we're just reading events
+def test_receives_all():
+    mock = MockConnectStrategy(
+        RespondWithData("event: event1\ndata: data1\n\n:whatever\nevent: event2\ndata: data2\n\n")
+    )
+    with SSEClient(connect=mock) as client:
+        all = client.all
 
-                    stream.push("event: event1\ndata: data1\n\nevent: event2\ndata: data2\n\n")
+        item1 = next(all)
+        assert isinstance(item1, Start)
 
-                    events = client.events
+        item2 = next(all)
+        assert isinstance(item2, Event)
+        assert item2.event == 'event1'
+        assert item2.data == 'data1'
 
-                    event1 = next(events)
-                    assert event1.event == 'event1'
-                    assert event1.data == 'data1'
+        item3 = next(all)
+        assert isinstance(item3, Comment)
+        assert item3.comment == 'whatever'
 
-                    event2 = next(events)
-                    assert event2.event == 'event2'
-                    assert event2.data == 'data2'
+        item4 = next(all)
+        assert isinstance(item4, Event)
+        assert item4.event == 'event2'
+        assert item4.data == 'data2'
 
-    def test_events_returns_eof_after_non_retryable_failure(self):
-        with start_server() as server:
-            with make_stream() as stream:
-                server.for_path('/', stream)
+def test_all_returns_fault_and_eof_when_stream_ends():
+    mock = MockConnectStrategy(
+        RespondWithData("event: event1\ndata: data1\n\n")
+    )
+    with SSEClient(connect=mock) as client:
+        all = client.all
 
-                with SSEClient(server.uri) as client:
-                    stream.push("event: event1\ndata: data1\n\n")
+        item1 = next(all)
+        assert isinstance(item1, Start)
 
-                    events = client.events
+        item2 = next(all)
+        assert isinstance(item2, Event)
+        assert item2.event == 'event1'
+        assert item2.data == 'data1'
 
-                    event1 = next(events)
-                    assert event1.event == 'event1'
-                    assert event1.data == 'data1'
+        item3 = next(all)
+        assert isinstance(item3, Fault)
+        assert item3.error is None
 
-                    stream.close()
-
-                    event2 = next(events, "done")
-                    assert event2 == "done"
-
-
-class TestSSEClientAllStream:
-    def test_receives_all(self):
-        with start_server() as server:
-            with make_stream() as stream:
-                server.for_path('/', stream)
-
-                with SSEClient(server.uri) as client:
-                    stream.push("event: event1\ndata: data1\n\n:whatever\nevent: event2\ndata: data2\n\n")
-
-                    all = client.all
-
-                    item1 = next(all)
-                    assert isinstance(item1, Start)
-
-                    item2 = next(all)
-                    assert isinstance(item2, Event)
-                    assert item2.event == 'event1'
-                    assert item2.data == 'data1'
-
-                    item3 = next(all)
-                    assert isinstance(item3, Comment)
-                    assert item3.comment == 'whatever'
-
-                    item4 = next(all)
-                    assert isinstance(item4, Event)
-                    assert item4.event == 'event2'
-                    assert item4.data == 'data2'
-
-    def test_all_returns_fault_and_eof_after_non_retryable_failure(self):
-        with start_server() as server:
-            with make_stream() as stream:
-                server.for_path('/', stream)
-
-                with SSEClient(server.uri, error_strategy=ErrorStrategy.always_fail()) as client:
-                    stream.push("event: event1\ndata: data1\n\n")
-
-                    all = client.all
-
-                    item1 = next(all)
-                    assert isinstance(item1, Start)
-
-                    item2 = next(all)
-                    assert isinstance(item2, Event)
-                    assert item2.event == 'event1'
-                    assert item2.data == 'data1'
-
-                    stream.close()
-
-                    item3 = next(all)
-                    assert isinstance(item3, Fault)
-                    assert item3.error is None
-
-                    item4 = next(all, 'done')
-                    assert item4 == 'done'
+        item4 = next(all, 'done')
+        assert item4 == 'done'

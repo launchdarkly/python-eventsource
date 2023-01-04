@@ -3,123 +3,132 @@ from ld_eventsource.actions import *
 from ld_eventsource.config import *
 
 from testing.helpers import *
-from testing.http_util import *
 
 
-class TestSSEClientRetryDuringInitialConnect:
-    def test_retry_succeeds(self):
-        with start_server() as server:
-            with make_stream() as stream:
-                server.for_path('/', SequentialHandler(BasicResponse(503), stream))
+def test_retry_during_initial_connect_succeeds():
+    mock = MockConnectStrategy(
+        RejectConnection(HTTPStatusError(503)),
+        RespondWithData("data: data1\n\n"),
+        ExpectNoMoreRequests(),
+    )
+    with SSEClient(
+        connect=mock,
+        retry_delay_strategy=no_delay(),
+        error_strategy=retry_for_status(503)
+    ) as client:
+        client.start()
 
-                with SSEClient(
-                    server.uri,
-                    retry_delay_strategy=no_delay(),
-                    error_strategy=retry_for_status(503)
-                ) as client:
-                    client.start()
+        events = client.events
+        event1 = next(events)
+        assert event1.data == 'data1'
 
-                    stream.push("data: data1\n\n")
+def test_retry_during_initial_connect_succeeds_then_fails():
+    mock = MockConnectStrategy(
+        RejectConnection(HTTPStatusError(503)),
+        RejectConnection(HTTPStatusError(400)),
+        ExpectNoMoreRequests(),
+    )
+    try:
+        with SSEClient(
+            connect=mock,
+            retry_delay_strategy=no_delay(),
+            error_strategy=retry_for_status(503)
+        ) as client:
+            client.start()
+        raise Exception("expected exception, did not get one")
+    except HTTPStatusError as e:
+        assert e.status == 400
 
-                    events = client.events
-                    event1 = next(events)
-                    assert event1.data == 'data1'
+def test_events_iterator_continues_after_retry():
+    mock = MockConnectStrategy(
+        RespondWithData("data: data1\n\n"),
+        RespondWithData("data: data2\n\n"),
+        ExpectNoMoreRequests(),
+    )
+    with SSEClient(
+        connect=mock,
+        error_strategy=ErrorStrategy.always_continue(),
+        retry_delay_strategy=no_delay()
+    ) as client:
+        events = client.events
 
-                server.await_request()
-                server.await_request()
-                server.should_have_no_more_requests()
+        event1 = next(events)
+        assert event1.data == 'data1'
 
-    def test_retry_succeeds_then_fails(self):
-        with start_server() as server:
-            with make_stream() as stream:
-                server.for_path('/', SequentialHandler(BasicResponse(503), BasicResponse(400), stream))
+        event2 = next(events)
+        assert event2.data == 'data2'
 
-                try:
-                    with SSEClient(
-                        server.uri,
-                        retry_delay_strategy=no_delay(),
-                        error_strategy=retry_for_status(503)
-                    ) as client:
-                        client.start()
-                    raise Exception("expected exception, did not get one")
-                except HTTPStatusError as e:
-                    assert e.status == 400
+def test_all_iterator_continues_after_retry():
+    initial_delay = 0.005
+    mock = MockConnectStrategy(
+        RespondWithData("data: data1\n\n"),
+        RespondWithData("data: data2\n\n"),
+        RespondWithData("data: data3\n\n"),
+        ExpectNoMoreRequests(),
+    )
+    with SSEClient(
+        connect=mock,
+        error_strategy=ErrorStrategy.always_continue(),
+        initial_retry_delay=initial_delay,
+        retry_delay_strategy=RetryDelayStrategy.default(jitter_multiplier=None)
+    ) as client:
+        all = client.all
 
-                server.await_request()
-                server.await_request()
-                server.should_have_no_more_requests()
+        item1 = next(all)
+        assert isinstance(item1, Start)
 
+        item2 = next(all)
+        assert isinstance(item2, Event)
+        assert item2.data == 'data1'
 
-class TestSSEClientRetryWhileReadingStream:
-    def test_events_iterator_continues_after_retry(self):
-        with start_server() as server:
-            with make_stream() as stream1:
-                with make_stream() as stream2:
-                    server.for_path('/', SequentialHandler(stream1, stream2))
+        item3 = next(all)
+        assert isinstance(item3, Fault)
+        assert item3.error is None
+        assert client.next_retry_delay == initial_delay
 
-                    stream1.push("data: data1\n\n")
-                    stream2.push("data: data2\n\n")
+        item4 = next(all)
+        assert isinstance(item4, Start)
+        
+        item5 = next(all)
+        assert isinstance(item5, Event)
+        assert item5.data == 'data2'
 
-                    with SSEClient(
-                        server.uri,
-                        error_strategy=ErrorStrategy.always_continue(),
-                        retry_delay_strategy=no_delay()
-                    ) as client:
-                        events = client.events
+        item6 = next(all)
+        assert isinstance(item6, Fault)
+        assert item6.error is None
+        assert client.next_retry_delay == initial_delay * 2
 
-                        event1 = next(events)
-                        assert event1.data == 'data1'
+def test_can_interrupt_and_restart_stream():
+    initial_delay = 0.005
+    mock = MockConnectStrategy(
+        RespondWithData("data: data1\n\ndata: data2\n\n"),
+        RespondWithData("data: data3\n\n"),
+        ExpectNoMoreRequests(),
+    )
+    with SSEClient(
+        connect=mock,
+        error_strategy=ErrorStrategy.always_continue(),
+        initial_retry_delay=initial_delay,
+        retry_delay_strategy=RetryDelayStrategy.default(jitter_multiplier=None)
+    ) as client:
+        all = client.all
 
-                        stream1.close()
+        item1 = next(all)
+        assert isinstance(item1, Start)
 
-                        event2 = next(events)
-                        assert event2.data == 'data2'
+        item2 = next(all)
+        assert isinstance(item2, Event)
+        assert item2.data == 'data1'
 
-    def test_all_iterator_continues_after_retry(self):
-        initial_delay = 0.005
+        client.interrupt()
+        assert client.next_retry_delay == initial_delay
 
-        with start_server() as server:
-            with make_stream() as stream1:
-                with make_stream() as stream2:
-                    with make_stream() as stream3:
-                        server.for_path('/', SequentialHandler(stream1, stream2, stream3))
-
-                        stream1.push("data: data1\n\n")
-                        stream2.push("data: data2\n\n")
-                        stream3.push("data: data3\n\n")
-
-                        with SSEClient(
-                            server.uri,
-                            error_strategy=ErrorStrategy.always_continue(),
-                            initial_retry_delay=initial_delay,
-                            retry_delay_strategy=RetryDelayStrategy.default(jitter_multiplier=None)
-                        ) as client:
-                            all = client.all
-
-                            item1 = next(all)
-                            assert isinstance(item1, Start)
-
-                            item2 = next(all)
-                            assert isinstance(item2, Event)
-                            assert item2.data == 'data1'
-
-                            stream1.close()
-
-                            item3 = next(all)
-                            assert isinstance(item3, Fault)
-                            assert item3.error is None
-                            assert client.next_retry_delay == initial_delay
-
-                            item4 = next(all)
-                            assert isinstance(item4, Start)
-                            
-                            item5 = next(all)
-                            assert isinstance(item5, Event)
-                            assert item5.data == 'data2'
-
-                            stream2.close()
-
-                            item6 = next(all)
-                            assert isinstance(item6, Fault)
-                            assert item6.error is None
-                            assert client.next_retry_delay == initial_delay * 2
+        item3 = next(all)
+        assert isinstance(item3, Fault)
+        
+        item4 = next(all)
+        assert isinstance(item4, Start)
+        
+        item5 = next(all)
+        assert isinstance(item5, Event)
+        assert item5.data == 'data3'
