@@ -7,9 +7,6 @@ class RequestParams:
 
     When calling the :class:`ld_eventsource.SSEClient` constructor, you can pass a
     `RequestParams` instance for the first parameter instead of a simple URL string.
-    Also, if you have specified a custom `retry_filter`, the filter can set
-    :prop:`ld_eventsource.retry.RetryFilterResult.request_params` to change the
-    parameters for the next request on a retry.
     """
     def __init__(
         self,

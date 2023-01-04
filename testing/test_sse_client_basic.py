@@ -3,6 +3,7 @@ from ld_eventsource import *
 from testing.helpers import *
 from testing.http_util import *
 
+import pytest
 from urllib3.exceptions import ProtocolError
 
 
@@ -15,7 +16,8 @@ class TestSSEClientHTTPBehavior:
         with start_server() as server:
             with make_stream() as stream:
                 server.for_path('/', stream)
-                with SSEClient(server.uri):
+                with SSEClient(server.uri) as client:
+                    client.start()
                     r = server.await_request()
                     assert r.headers['Accept'] == 'text/event-stream'
                     assert r.headers['Cache-Control'] == 'no-cache'
@@ -24,8 +26,8 @@ class TestSSEClientHTTPBehavior:
         with start_server() as server:
             server.for_path('/', BasicResponse(400))
             try:
-                with SSEClient(server.uri):
-                    pass
+                with SSEClient(server.uri) as client:
+                    client.start()
                 raise Exception("expected exception, did not get one")
             except HTTPStatusError as e:
                 assert e.status == 400
@@ -35,8 +37,8 @@ class TestSSEClientHTTPBehavior:
             with ChunkedResponse({ 'Content-Type': 'text/plain' }) as stream:
                 server.for_path('/', stream)
                 try:
-                    with SSEClient(server.uri):
-                        pass
+                    with SSEClient(server.uri) as client:
+                        client.start()
                     raise Exception("expected exception, did not get one")
                 except HTTPContentTypeError as e:
                     assert e.content_type == "text/plain"
@@ -45,8 +47,8 @@ class TestSSEClientHTTPBehavior:
         with start_server() as server:
             server.for_path('/', CauseNetworkError())
             try:
-                with SSEClient(server.uri, retry_filter=never_retry):
-                    pass
+                with SSEClient(server.uri) as client:
+                    client.start()
                 raise Exception("expected exception, did not get one")
             except ProtocolError as e:
                 pass
@@ -56,8 +58,8 @@ class TestSSEClientHTTPBehavior:
             with make_stream() as stream:
                 server.for_path('/', BasicResponse(301, None, {'Location': server.uri + '/real-stream'}))
                 server.for_path('/real-stream', stream)
-                with SSEClient(server.uri):
-                    pass
+                with SSEClient(server.uri) as client:
+                    client.start()
             server.await_request()
             server.await_request()
     
@@ -66,19 +68,23 @@ class TestSSEClientHTTPBehavior:
             with make_stream() as stream:
                 server.for_path('/', BasicResponse(307, None, {'Location': server.uri + '/real-stream'}))
                 server.for_path('/real-stream', stream)
-                with SSEClient(server.uri):
-                    pass
+                with SSEClient(server.uri) as client:
+                    client.start()
             server.await_request()
             server.await_request()
 
 
 class TestSSEClientEventsStream:
-    def test_receives_events(self):
+    @pytest.mark.parametrize('explicitly_start', [False, True])
+    def test_receives_events(self, explicitly_start: bool):
         with start_server() as server:
             with make_stream() as stream:
                 server.for_path('/', stream)
 
                 with SSEClient(server.uri) as client:
+                    if explicitly_start:
+                        client.start()  # shouldn't make a difference if we're just reading events
+
                     stream.push("event: event1\ndata: data1\n\nevent: event2\ndata: data2\n\n")
 
                     events = client.events
@@ -91,26 +97,12 @@ class TestSSEClientEventsStream:
                     assert event2.event == 'event2'
                     assert event2.data == 'data2'
 
-    def test_receives_events_with_defer_connect(self):
-        with start_server() as server:
-            with make_stream() as stream:
-                server.for_path('/', stream)
-
-                with SSEClient(server.uri, defer_connect=True) as client:
-                    stream.push("event: event1\ndata: data1\n\n")
-
-                    events = client.events
-
-                    event1 = next(events)
-                    assert event1.event == 'event1'
-                    assert event1.data == 'data1'
-
     def test_events_returns_eof_after_non_retryable_failure(self):
         with start_server() as server:
             with make_stream() as stream:
                 server.for_path('/', stream)
 
-                with SSEClient(server.uri, retry_filter=never_retry) as client:
+                with SSEClient(server.uri) as client:
                     stream.push("event: event1\ndata: data1\n\n")
 
                     events = client.events
@@ -158,7 +150,7 @@ class TestSSEClientAllStream:
             with make_stream() as stream:
                 server.for_path('/', stream)
 
-                with SSEClient(server.uri, retry_filter=never_retry) as client:
+                with SSEClient(server.uri, error_strategy=ErrorStrategy.always_fail()) as client:
                     stream.push("event: event1\ndata: data1\n\n")
 
                     all = client.all
@@ -176,7 +168,6 @@ class TestSSEClientAllStream:
                     item3 = next(all)
                     assert isinstance(item3, Fault)
                     assert item3.error is None
-                    assert item3.will_retry is False
 
                     item4 = next(all, 'done')
                     assert item4 == 'done'

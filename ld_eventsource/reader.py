@@ -1,4 +1,4 @@
-from ld_eventsource.event import Comment, Event
+from ld_eventsource.actions import Comment, Event
 
 from typing import Callable, Iterable, Optional
 

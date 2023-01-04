@@ -2,7 +2,11 @@ import json
 from typing import Optional
 
 
-class Event:
+class Action:
+    pass
+
+
+class Event(Action):
     """
     An event received by :class:`ld_eventsource.SSEClient`.
 
@@ -63,7 +67,7 @@ class Event:
         )
 
 
-class Comment:
+class Comment(Action):
     """
     A comment received by :class:`ld_eventsource.SSEClient`.
     
@@ -89,7 +93,7 @@ class Comment:
         return ":" + self._comment
 
 
-class Start:
+class Start(Action):
     """
     Indicates that :class:`ld_eventsource.SSEClient` has successfully connected to a stream.
 
@@ -101,20 +105,20 @@ class Start:
     pass
 
 
-class Fault:
+class Fault(Action):
     """
     Indicates that :class:`ld_eventsource.SSEClient` encountered an error or end of stream.
 
     Instances of this class are only available from :prop:`ld_eventsource.SSEClient.all`.
-    They indicate either 1. a problem that happened after an initial successful connection
-    was made, or 2. a problem with the initial connection, if you passed `True` for
-    the `defer_connect` parameter to the :class:`ld_eventsource.SSEClient` constructor.
+
+    If you receive a Fault, the SSEClient is now in an inactive state since either a
+    connection attempt has failed or an existing connection has been closed. The SSEClient
+    will attempt to reconnect if you either call :func:`start()` or simply continue reading
+    events after this point.
     """
 
-    def __init__(self, error: Optional[Exception], will_retry: bool, retry_delay: float):
+    def __init__(self, error: Optional[Exception]):
         self.__error = error
-        self.__will_retry = will_retry
-        self.__retry_delay = retry_delay
     
     @property
     def error(self) -> Optional[Exception]:
@@ -124,19 +128,3 @@ class Fault:
         in an orderly way after sending an EOF chunk as defined by chunked transfer encoding.
         """
         return self.__error
-    
-    @property
-    def will_retry(self) -> bool:
-        """
-        True if the :class:`ld_eventsource.SSEClient` will try to reconnect. This depends on
-        the nature of the error and whether a custom `retry_filter` was specified.
-        """
-        return self.__will_retry
-    
-    @property
-    def retry_delay(self) -> float:
-        """
-        The time, in seconds, that the :class:`ld_eventsource.SSEClient` will wait before
-        trying to reconnect. If :prop:`will_retry` was False, then this value is undefined.
-        """
-        return self.__retry_delay

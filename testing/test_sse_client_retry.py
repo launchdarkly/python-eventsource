@@ -12,9 +12,11 @@ class TestSSEClientRetryDuringInitialConnect:
 
                 with SSEClient(
                     server.uri,
-                    retry_delay_strategy=no_delay,
-                    retry_filter=retry_for_status(503)
+                    retry_delay_strategy=no_delay(),
+                    error_strategy=retry_for_status(503)
                 ) as client:
+                    client.start()
+
                     stream.push("data: data1\n\n")
 
                     events = client.events
@@ -33,10 +35,10 @@ class TestSSEClientRetryDuringInitialConnect:
                 try:
                     with SSEClient(
                         server.uri,
-                        retry_delay_strategy=no_delay,
-                        retry_filter=retry_for_status(503)
-                    ):
-                        pass
+                        retry_delay_strategy=no_delay(),
+                        error_strategy=retry_for_status(503)
+                    ) as client:
+                        client.start()
                     raise Exception("expected exception, did not get one")
                 except HTTPStatusError as e:
                     assert e.status == 400
@@ -56,7 +58,11 @@ class TestSSEClientRetryWhileReadingStream:
                     stream1.push("data: data1\n\n")
                     stream2.push("data: data2\n\n")
 
-                    with SSEClient(server.uri, retry_delay_strategy=no_delay) as client:
+                    with SSEClient(
+                        server.uri,
+                        error_strategy=ErrorStrategy.always_continue(),
+                        retry_delay_strategy=no_delay()
+                    ) as client:
                         events = client.events
 
                         event1 = next(events)
@@ -82,8 +88,9 @@ class TestSSEClientRetryWhileReadingStream:
 
                         with SSEClient(
                             server.uri,
+                            error_strategy=ErrorStrategy.always_continue(),
                             initial_retry_delay=initial_delay,
-                            retry_delay_strategy=default_retry_delay_strategy(jitter_multiplier=None)
+                            retry_delay_strategy=RetryDelayStrategy.default(jitter_multiplier=None)
                         ) as client:
                             all = client.all
 
@@ -99,8 +106,7 @@ class TestSSEClientRetryWhileReadingStream:
                             item3 = next(all)
                             assert isinstance(item3, Fault)
                             assert item3.error is None
-                            assert item3.will_retry is True
-                            assert item3.retry_delay == initial_delay
+                            assert client.next_retry_delay == initial_delay
 
                             item4 = next(all)
                             assert isinstance(item4, Start)
@@ -114,37 +120,4 @@ class TestSSEClientRetryWhileReadingStream:
                             item6 = next(all)
                             assert isinstance(item6, Fault)
                             assert item6.error is None
-                            assert item6.will_retry is True
-                            assert item6.retry_delay == initial_delay * 2
-
-
-class TestSSEClientRetryWithDeferConnect:
-    def test_all_iterator_shows_initial_retry(self):
-        initial_delay = 0.005
-
-        with start_server() as server:
-            with make_stream() as stream:
-                server.for_path('/', SequentialHandler(BasicResponse(503), stream))
-
-                stream.push("data: data1\n\n")
-
-                with SSEClient(
-                    server.uri,
-                    initial_retry_delay=initial_delay,
-                    retry_delay_strategy=default_retry_delay_strategy(jitter_multiplier=None),
-                    retry_filter=retry_for_status(503),
-                    defer_connect=True
-                ) as client:
-                    all = client.all
-
-                    item1 = next(all)
-                    assert isinstance(item1, Fault)
-                    assert isinstance(item1.error, HTTPStatusError)
-                    assert item1.error.status == 503
-
-                    item2 = next(all)
-                    assert isinstance(item2, Start)
-
-                    item3 = next(all)
-                    assert isinstance(item3, Event)
-                    assert item3.data == 'data1'
+                            assert client.next_retry_delay == initial_delay * 2
