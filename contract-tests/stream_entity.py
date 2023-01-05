@@ -115,7 +115,6 @@ class StreamEntity:
 
     def close(self):
         self.closed = True
-        self.log.info('Closing SSE client')
         self.sse.close()
         # SSEClient.close() doesn't currently work, due to urllib3 hanging when we try to force-close a
         # socket that's doing a blocking read. However, in the context of the contract tests, we know that

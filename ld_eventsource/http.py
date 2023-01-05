@@ -39,6 +39,11 @@ class _HttpConnectParams:
         return self.__urllib3_request_options
 
 
+def _close_resp(resp):
+    print("*** calling HTTPResponse.close()")
+    resp.close()
+
+
 class _HttpClientImpl:
     def __init__(self, params: _HttpConnectParams, logger: Logger):
         self.__params = params
@@ -77,8 +82,9 @@ class _HttpClientImpl:
             raise HTTPContentTypeError(content_type or '')
 
         stream = resp.stream(_CHUNK_SIZE)
-        return stream, resp.close
+        return stream, lambda: _close_resp(resp)
 
     def close(self):
         if self.__should_close_pool:
+            print("*** calling PoolManager.clear()")
             self.__pool.clear()
