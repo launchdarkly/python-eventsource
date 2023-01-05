@@ -4,7 +4,6 @@ import json
 import logging
 import os
 import sys
-import urllib3
 from flask import Flask, request
 from flask.logging import default_handler
 from logging.config import dictConfig

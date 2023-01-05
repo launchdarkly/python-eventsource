@@ -1,6 +1,7 @@
 from logging import Logger
+import socket
 from typing import Callable, Iterator, Optional, Tuple
-from urllib3 import PoolManager
+from urllib3 import HTTPResponse, PoolManager
 from urllib3.exceptions import MaxRetryError
 from urllib3.util import Retry
 
@@ -37,6 +38,19 @@ class _HttpConnectParams:
     @property
     def urllib3_request_options(self) -> Optional[dict]:
         return self.__urllib3_request_options
+
+
+def _force_close_http_response(resp: HTTPResponse, logger: Logger):
+    # There are two possible scenarios here:
+    # 1. The caller started the stream on thread A, and is now closing it from the same thread.
+    # 2. The caller started the stream on thread A, and thread A is waiting on a blocking read, but now
+    #    thread B wants to forcibly close the stream.
+    # The problem is that in scenario 2, calling urllib3.HTTPResponse.close() (or the equivalent lower-level
+    # method http.client.HTTPResponse.close()) from thread B will hang. To forcibly break the connection
+    # from the client side regardless of whether a read is happening on it, we have to access the low-level
+    # file descriptor. That will cause any current blocking read to error out.
+    socket.close(resp._fp.fileno())
+    resp.release_conn()
 
 
 class _HttpClientImpl:
@@ -77,7 +91,7 @@ class _HttpClientImpl:
             raise HTTPContentTypeError(content_type or '')
 
         stream = resp.stream(_CHUNK_SIZE)
-        return stream, resp.release_conn
+        return stream, lambda: _force_close_http_response(resp, self.__logger)
 
     def close(self):
         if self.__should_close_pool:

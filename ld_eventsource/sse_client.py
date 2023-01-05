@@ -139,9 +139,13 @@ class SSEClient:
     def close(self):
         """
         Permanently shuts down this client instance and closes any active connection.
+
+        This method is safe to call from any thread, even if another thread is currently
+        attempting to read from the stream.
         """
         self.__closed = True
         self.interrupt()
+        self.__connection_client.close()
     
     def interrupt(self):
         """
@@ -151,6 +155,10 @@ class SSEClient:
         permanently shut down the :class:`SSEClient`. If you try to read more events or call
         :meth:`start()`, the client will try to reconnect to the stream. The behavior is
         exactly the same as if the previous stream had been ended by the server.
+
+        Currently, if you call this method from one thread while a different thread is
+        attempting to read from the stream, it will correctly interrupt the stream but will
+        not leave the HTTP client in a correct state to retry the connection.
         """
         if self.__connection_result:
             self.__interrupted = True
