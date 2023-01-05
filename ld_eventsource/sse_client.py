@@ -142,6 +142,9 @@ class SSEClient:
         """
         self.__closed = True
         self.interrupt()
+        self.__logger.info('*** closing client')
+        self.__connection_client.close()
+        self.__logger.info('*** closed client')
     
     def interrupt(self):
         """
@@ -154,8 +157,10 @@ class SSEClient:
         """
         if self.__connection_result:
             self.__interrupted = True
+            self.__logger.info('*** closing connection')
             self.__connection_result.close()
             self.__connection_result = None
+            self.__logger.info('*** closed connection')
             self._compute_next_retry_delay()
 
     @property

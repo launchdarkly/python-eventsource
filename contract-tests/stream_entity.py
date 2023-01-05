@@ -44,7 +44,7 @@ class StreamEntity:
             )                    
             sse = SSEClient(
                 connect,
-                initial_retry_delay=millis_to_seconds(self.options.get("initialDelayMs")),
+                initial_retry_delay=millis_to_seconds(self.options.get("initialDelayMs")) or 0,
                 last_event_id=self.options.get("lastEventId"),
                 error_strategy=ErrorStrategy.from_lambda(lambda _:
                     (ErrorStrategy.FAIL if self.closed else ErrorStrategy.CONTINUE, None)),
@@ -115,6 +115,8 @@ class StreamEntity:
 
     def close(self):
         self.closed = True
+        self.log.info('Closing SSE client')
+        self.sse.close()
         # SSEClient.close() doesn't currently work, due to urllib3 hanging when we try to force-close a
         # socket that's doing a blocking read. However, in the context of the contract tests, we know that
         # the server will be closing the connection anyway when a test is done-- so all we need to do is
