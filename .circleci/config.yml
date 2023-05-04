@@ -9,6 +9,7 @@ workflows:
       - test-linux:
           name: Python 3.7
           docker-image: cimg/python:3.7
+          skip-contract-tests: true
       - test-linux:
           name: Python 3.8
           docker-image: cimg/python:3.8
@@ -29,6 +30,10 @@ jobs:
     parameters:
       docker-image:
         type: string
+      skip-contract-tests:
+        type: boolean
+        default: false
+
     docker:
       - image: <<parameters.docker-image>>
     steps:
@@ -48,17 +53,20 @@ jobs:
           name: lint
           command: make lint
 
-      - run:
-          name: build SSE contract test service
-          command: make build-contract-test-service
-      - run:
-          name: start SSE contract test service
-          command: make start-contract-test-service
-          background: true
-      - run:
-          name: run SSE contract tests
-          command: make run-contract-tests
-      
+      - unless:
+          condition: <<parameters.skip-contract-tests>>
+          steps:
+          - run:
+              name: build SSE contract test service
+              command: make build-contract-test-service
+          - run:
+              name: start SSE contract test service
+              command: make start-contract-test-service
+              background: true
+          - run:
+              name: run SSE contract tests
+              command: make run-contract-tests
+
       - store_test_results:
           path: test-reports
       - store_artifacts:
