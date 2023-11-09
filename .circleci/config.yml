@@ -8,20 +8,20 @@ workflows:
     jobs:
       - test-linux:
           name: Python 3.7
-          docker-image: cimg/python:3.7
+          docker-image: python:3.7-slim
           skip-contract-tests: true
       - test-linux:
           name: Python 3.8
-          docker-image: cimg/python:3.8
+          docker-image: python:3.8-slim
       - test-linux:
           name: Python 3.9
-          docker-image: cimg/python:3.9
+          docker-image: python:3.9-slim
       - test-linux:
           name: Python 3.10
-          docker-image: cimg/python:3.10
+          docker-image: python:3.10-slim
       - test-linux:
           name: Python 3.11
-          docker-image: cimg/python:3.11
+          docker-image: python:3.11-slim
       - test-windows:
           name: Windows Python 3
 
@@ -38,6 +38,9 @@ jobs:
       - image: <<parameters.docker-image>>
     steps:
       - checkout
+      - run:
+          name: install os prerequisities
+          command: apt-get update && apt-get install -y make
       - run:
           name: install requirements
           command: |
@@ -85,6 +88,7 @@ jobs:
           name: install requirements
           command: |
             python --version
+            pip install setuptools
             pip install -r test-requirements.txt
             python setup.py install
       - run:
