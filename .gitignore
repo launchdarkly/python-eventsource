@@ -71,3 +71,6 @@ test-packaging-venv
 
 .vscode/
 .python-version
+
+# Poetry
+poetry.lock

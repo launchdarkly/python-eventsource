@@ -19,8 +19,8 @@ This project should be developed against its minimum compatible version as descr
 To install the runtime and test requirements:
 
 ```
-pip install -r requirements.txt
-pip install -r test-requirements.txt
+poetry shell
+poetry install
 ```
 
 ### Testing
@@ -28,7 +28,7 @@ pip install -r test-requirements.txt
 To run all unit tests:
 
 ```
-pytest
+make test
 ```
 
 To run the standardized contract tests that are run against all LaunchDarkly SSE client implementations:

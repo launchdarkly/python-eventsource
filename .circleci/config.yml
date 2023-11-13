@@ -9,7 +9,6 @@ workflows:
       - test-linux:
           name: Python 3.7
           docker-image: python:3.7-slim
-          skip-contract-tests: true
       - test-linux:
           name: Python 3.8
           docker-image: python:3.8-slim
@@ -47,31 +46,27 @@ jobs:
       - run:
           name: install requirements
           command: |
-            pip install -r test-requirements.txt
-            python setup.py install
-            pip freeze
+            pip install poetry
+            poetry install
       - run:
           name: run tests
           command: |
             mkdir test-reports
-            pytest -s --junitxml=test-reports/junit.xml testing -W error::SyntaxWarning
+            poetry run pytest -s --junitxml=test-reports/junit.xml testing -W error::SyntaxWarning
       - run:
           name: lint
           command: make lint
 
-      - unless:
-          condition: <<parameters.skip-contract-tests>>
-          steps:
-          - run:
-              name: build SSE contract test service
-              command: make build-contract-test-service
-          - run:
-              name: start SSE contract test service
-              command: make start-contract-test-service
-              background: true
-          - run:
-              name: run SSE contract tests
-              command: make run-contract-tests
+      - run:
+          name: build SSE contract test service
+          command: make build-contract-test-service
+      - run:
+          name: start SSE contract test service
+          command: make start-contract-test-service
+          background: true
+      - run:
+          name: run SSE contract tests
+          command: make run-contract-tests
 
       - store_test_results:
           path: test-reports
@@ -91,14 +86,13 @@ jobs:
           name: install requirements
           command: |
             python --version
-            pip install setuptools
-            pip install -r test-requirements.txt
-            python setup.py install
+            pip install poetry
+            poetry install
       - run:
           name: run tests
           command: |
             mkdir test-reports
-            python -m pytest -s --junitxml=test-reports/junit.xml testing;
+            poetry run pytest -s --junitxml=test-reports/junit.xml testing;
       - store_test_results:
           path: test-reports
       - store_artifacts:
