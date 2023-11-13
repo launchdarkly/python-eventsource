@@ -1,0 +1,10 @@
+{
+  "packages": {
+    ".": {
+      "release-type": "python",
+      "versioning": "default",
+      "extra-files": ["ld_eventsource/version.py"],
+      "include-component-in-tag": false
+    }
+  }
+}
