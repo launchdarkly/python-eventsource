@@ -4,7 +4,7 @@
 
 The LaunchDarkly SDK team monitors the [issue tracker](https://github.com/launchdarkly/python-eventsource/issues) in this repository. Bug reports and feature requests specific to this project should be filed in this issue tracker. The SDK team will respond to all newly filed issues within two business days.
 
-Some of this code is used by the LaunchDarkly Python SDK. For issues or requests that are more generally related to the LaunchDarkly Python SDK, rather than specifically for the code in this repository, please use the [`go-server-sdk`](https://github.com/launchdarkly/python-server-sdk) repository.
+Some of this code is used by the LaunchDarkly Python SDK. For issues or requests that are more generally related to the LaunchDarkly Python SDK, rather than specifically for the code in this repository, please use the [`python-server-sdk`](https://github.com/launchdarkly/python-server-sdk) repository.
  
 ## Submitting pull requests
  

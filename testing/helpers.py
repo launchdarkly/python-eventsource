@@ -32,7 +32,7 @@ class MockConnectionClient(ConnectionClient):
     def __init__(self, handlers: List[MockConnectionHandler]):
         self.__handlers = handlers
         self.__request_count = 0
-    
+
     def connect(self, last_event_id: Optional[str]) -> ConnectionResult:
         handler = self.__handlers[self.__request_count]
         if self.__request_count < len(self.__handlers) - 1:
@@ -41,19 +41,19 @@ class MockConnectionClient(ConnectionClient):
 
 class MockConnectionHandler:
     def apply(self) -> ConnectionResult:
-        pass
+        raise NotImplementedError("MockConnectionHandler base class cannot be used by itself")
 
 class RejectConnection(MockConnectionHandler):
     def __init__(self, error: Exception):
         self.__error = error
-    
+
     def apply(self) -> ConnectionResult:
         raise self.__error
 
 class RespondWithStream(MockConnectionHandler):
     def __init__(self, stream: Iterable[bytes]):
         self.__stream = stream
-    
+
     def apply(self) -> ConnectionResult:
         return ConnectionResult(stream=self.__stream.__iter__(), closer=None)
 
