@@ -3,6 +3,7 @@
     ".": {
       "release-type": "python",
       "versioning": "default",
+      "include-v-in-tag": false,
       "extra-files": ["ld_eventsource/version.py"],
       "include-component-in-tag": false
     }

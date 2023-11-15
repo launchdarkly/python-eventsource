@@ -1,6 +1,3 @@
-# Use a step like this if your package needs published somewhere other than github.
-# npm, nuget, crates.io, etc.
-
 name: Publish Package
 description: 'Publish the package to PyPI'
 inputs:

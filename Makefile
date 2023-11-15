@@ -62,7 +62,7 @@ start-contract-test-service-bg:
 
 .PHONY: run-contract-tests
 run-contract-tests:
-	@curl -s https://raw.githubusercontent.com/launchdarkly/sse-contract-tests/v2.0.0/downloader/run.sh \
+	@curl -s https://raw.githubusercontent.com/launchdarkly/sse-contract-tests/main/downloader/run.sh \
       | VERSION=v2 PARAMS="-url http://localhost:8000 -debug -stop-service-at-end" sh
 
 .PHONY: contract-tests
