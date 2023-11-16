@@ -1,0 +1,76 @@
+name: Quality control checks
+
+on:
+  push:
+    branches: [ main ]
+    paths-ignore:
+      - '**.md' # Do not need to run CI for markdown changes.
+  pull_request:
+    branches: [ main ]
+    paths-ignore:
+      - '**.md'
+
+jobs:
+  linux:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        python-version: ["3.7", "3.8", "3.9", "3.10", "3.11", "3.12"]
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install poetry
+        run: pipx install poetry
+
+      - uses: ./.github/actions/build
+      - uses: ./.github/actions/build-docs
+
+      - name: Run tests
+        run: make test
+
+      - name: Verify typehints
+        run: make lint
+
+      - name: install contract test dependencies
+        run: make install-contract-tests-deps
+
+      - name: start SSE contract test service
+        run: make start-contract-test-service-bg
+
+      - name: run SSE contract tests
+        run: make run-contract-tests
+
+  windows:
+    runs-on: windows-latest
+
+    defaults:
+      run:
+        shell: powershell
+
+    strategy:
+      matrix:
+        python-version: ["3.7", "3.8", "3.9", "3.10", "3.11", "3.12"]
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install requirements
+        run: |
+          pipx install poetry
+          poetry install
+
+      - uses: ./.github/actions/build
+      - uses: ./.github/actions/build-docs
+
+      - name: Run tests
+        run: make test
