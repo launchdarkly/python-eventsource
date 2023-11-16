@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html class="writer-html4" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ld_eventsource.sse_client &mdash; launchdarkly-eventsource 1.1.0 documentation</title><link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  <script id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+        <script type="text/javascript" src="../../_static/jquery.js"></script>
+        <script type="text/javascript" src="../../_static/underscore.js"></script>
+        <script type="text/javascript" src="../../_static/doctools.js"></script>
+        <script type="text/javascript" src="../../_static/language_data.js"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            launchdarkly-eventsource
+          </a>
+              <div class="version">
+                1.1.0
+              </div>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <!-- Local TOC -->
+              <div class="local-toc"></div>
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">launchdarkly-eventsource</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">ld_eventsource.sse_client</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for ld_eventsource.sse_client</h1><div class="highlight"><pre>
+<span></span><span class="kn">from</span> <span class="nn">ld_eventsource.actions</span> <span class="kn">import</span> <span class="o">*</span>
+<span class="kn">from</span> <span class="nn">ld_eventsource.errors</span> <span class="kn">import</span> <span class="o">*</span>
+<span class="kn">from</span> <span class="nn">ld_eventsource.config</span> <span class="kn">import</span> <span class="o">*</span>
+<span class="kn">from</span> <span class="nn">ld_eventsource.reader</span> <span class="kn">import</span> <span class="n">_BufferedLineReader</span><span class="p">,</span> <span class="n">_SSEReader</span>
+
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Iterable</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Union</span>
+
+
+<div class="viewcode-block" id="SSEClient"><a class="viewcode-back" href="../../index.html#ld_eventsource.SSEClient">[docs]</a><span class="k">class</span> <span class="nc">SSEClient</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    A client for reading a Server-Sent Events stream.</span>
+
+<span class="sd">    This is a synchronous implementation which blocks the caller&#39;s thread when reading events or</span>
+<span class="sd">    reconnecting. It can be run on a worker thread. The expected usage is to create an ``SSEClient``</span>
+<span class="sd">    instance, then read from it using the iterator properties :attr:`events` or :attr:`all`.</span>
+<span class="sd">    </span>
+<span class="sd">    By default, ``SSEClient`` uses ``urllib3`` to make HTTP requests to an SSE endpoint. You can</span>
+<span class="sd">    customize this behavior using :class:`.ConnectStrategy`.</span>
+
+<span class="sd">    Connection failures and error responses can be handled in various ways depending on the</span>
+<span class="sd">    constructor parameters. The default behavior, if no non-default parameters are passed, is</span>
+<span class="sd">    that the client will attempt to reconnect as many times as necessary if a connection is</span>
+<span class="sd">    dropped or cannot be made; but if a connection is made and returns an invalid response</span>
+<span class="sd">    (non-2xx status, 204 status, or invalid content type), it will not retry. This behavior can</span>
+<span class="sd">    be customized with ``error_strategy``. The client will automatically follow 3xx redirects.</span>
+<span class="sd">    </span>
+<span class="sd">    For any non-retryable error, if this is the first connection attempt then the constructor</span>
+<span class="sd">    will throw an exception (such as :class:`.HTTPStatusError`). Or, if a</span>
+<span class="sd">    successful connection was made so the constructor has already returned, but a</span>
+<span class="sd">    non-retryable error occurs subsequently, the iterator properties will simply run out of</span>
+<span class="sd">    values to indicate that the ``SSEClient`` is finished (if you are reading :attr:`all`, it will</span>
+<span class="sd">    first yield a :class:`.Fault` to indicate what the error was).</span>
+
+<span class="sd">    To avoid flooding the server with requests, it is desirable to have a delay before each</span>
+<span class="sd">    reconnection. There is a base delay set by ``initial_retry_delay`` (which can be overridden</span>
+<span class="sd">    by the stream if the server sends a ``retry:`` line). By default, as defined by</span>
+<span class="sd">    :meth:`.RetryDelayStrategy.default()`, this delay will double with each subsequent retry,</span>
+<span class="sd">    and will also have a pseudo-random jitter subtracted. You can customize this behavior with</span>
+<span class="sd">    ``retry_delay_strategy``.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="SSEClient.__init__"><a class="viewcode-back" href="../../index.html#ld_eventsource.SSEClient.__init__">[docs]</a>    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> 
+        <span class="n">connect</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">ConnectStrategy</span><span class="p">],</span>
+        <span class="n">initial_retry_delay</span><span class="p">:</span> <span class="nb">float</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+        <span class="n">retry_delay_strategy</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">RetryDelayStrategy</span><span class="p">]</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">retry_delay_reset_threshold</span><span class="p">:</span> <span class="nb">float</span><span class="o">=</span><span class="mi">60</span><span class="p">,</span>
+        <span class="n">error_strategy</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ErrorStrategy</span><span class="p">]</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">last_event_id</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">logger</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">logging</span><span class="o">.</span><span class="n">Logger</span><span class="p">]</span><span class="o">=</span><span class="kc">None</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Creates a client instance.</span>
+
+<span class="sd">        The client is created in an inactive state. It will not try to make a stream connection</span>
+<span class="sd">        until either you call :meth:`start()`, or you attempt to read events from</span>
+<span class="sd">        :attr:`events` or :attr:`all`.</span>
+
+<span class="sd">        For the default HTTP behavior, you may pass a URL string for ``connect``; this is</span>
+<span class="sd">        equivalent to ``connect=ConnectStrategy.http(url)``. To set custom HTTP options, call</span>
+<span class="sd">        :meth:`.ConnectStrategy.http()` directly:</span>
+<span class="sd">        ::</span>
+
+<span class="sd">            sse_client = SSEClient(</span>
+<span class="sd">                connect=ConnectStrategy.http(</span>
+<span class="sd">                    url=&quot;https://my-sse-server.com&quot;,</span>
+<span class="sd">                    headers={&quot;Authorization&quot;: &quot;abcdef&quot;}</span>
+<span class="sd">                )</span>
+<span class="sd">            )</span>
+
+<span class="sd">        Or, you may provide your own :class:`.ConnectStrategy` implementation to make SSEClient</span>
+<span class="sd">        read from another source.</span>
+
+<span class="sd">        :param connect: either a :class:`.ConnectStrategy` instance or a URL string</span>
+<span class="sd">        :param initial_retry_delay: the initial delay before reconnecting after a failure,</span>
+<span class="sd">            in seconds; this can increase as described in :class:`SSEClient`</span>
+<span class="sd">        :param retry_delay_strategy: allows customization of the delay behavior for retries; if</span>
+<span class="sd">            not specified, uses :meth:`.RetryDelayStrategy.default()`</span>
+<span class="sd">        :param retry_delay_reset_threshold: the minimum amount of time that a connection must</span>
+<span class="sd">            stay open before the SSEClient resets its retry delay strategy</span>
+<span class="sd">        :param error_strategy: allows customization of the behavior after a stream failure; if</span>
+<span class="sd">            not specified: uses :meth:`.ErrorStrategy.always_fail()`</span>
+<span class="sd">        :param last_event_id: if provided, the ``Last-Event-Id`` value will be preset to this</span>
+<span class="sd">        :param logger: if provided, log messages will be written here</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">connect</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+            <span class="n">connect</span> <span class="o">=</span> <span class="n">ConnectStrategy</span><span class="o">.</span><span class="n">http</span><span class="p">(</span><span class="n">connect</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">connect</span><span class="p">,</span> <span class="n">ConnectStrategy</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;request must be either a string or ConnectStrategy&quot;</span><span class="p">)</span>
+        
+        <span class="bp">self</span><span class="o">.</span><span class="n">__base_retry_delay</span> <span class="o">=</span> <span class="n">initial_retry_delay</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__base_retry_delay_strategy</span> <span class="o">=</span> <span class="n">retry_delay_strategy</span> <span class="ow">or</span> <span class="n">RetryDelayStrategy</span><span class="o">.</span><span class="n">default</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__retry_delay_reset_threshold</span> <span class="o">=</span> <span class="n">retry_delay_reset_threshold</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__current_retry_delay_strategy</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__base_retry_delay_strategy</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__next_retry_delay</span> <span class="o">=</span> <span class="mi">0</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">__base_error_strategy</span> <span class="o">=</span> <span class="n">error_strategy</span> <span class="ow">or</span> <span class="n">ErrorStrategy</span><span class="o">.</span><span class="n">always_fail</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__current_error_strategy</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__base_error_strategy</span>
+        
+        <span class="bp">self</span><span class="o">.</span><span class="n">__last_event_id</span> <span class="o">=</span> <span class="n">last_event_id</span>
+
+        <span class="k">if</span> <span class="n">logger</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="s1">&#39;launchdarkly-eventsource.null&#39;</span><span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">addHandler</span><span class="p">(</span><span class="n">logging</span><span class="o">.</span><span class="n">NullHandler</span><span class="p">())</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">propagate</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__logger</span> <span class="o">=</span> <span class="n">logger</span>
+      
+        <span class="bp">self</span><span class="o">.</span><span class="n">__connection_client</span> <span class="o">=</span> <span class="n">connect</span><span class="o">.</span><span class="n">create_client</span><span class="p">(</span><span class="n">logger</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__connection_result</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ConnectionResult</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__connected_time</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__disconnected_time</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mi">0</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">__closed</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__interrupted</span> <span class="o">=</span> <span class="kc">False</span></div>
+
+<div class="viewcode-block" id="SSEClient.start"><a class="viewcode-back" href="../../index.html#ld_eventsource.SSEClient.start">[docs]</a>    <span class="k">def</span> <span class="nf">start</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Attempts to start the stream if it is not already active.</span>
+
+<span class="sd">        If there is not an active stream connection, this method attempts to start one using</span>
+<span class="sd">        the previously configured parameters. If successful, it returns and you can proceed</span>
+<span class="sd">        to read events. You should only read events on the same thread where you called</span>
+<span class="sd">        :meth:`start()`.</span>
+
+<span class="sd">        If the connection fails, the behavior depends on the configured :class:`.ErrorStrategy`.</span>
+<span class="sd">        The default strategy is to raise an exception, but you can configure it to continue</span>
+<span class="sd">        instead, in which case :meth:`start()` will keep retrying until the :class:`.ErrorStrategy`</span>
+<span class="sd">        says to give up.</span>
+
+<span class="sd">        If the stream was previously active and then failed, :meth:`start()` will sleep for</span>
+<span class="sd">        some amount of time-- the retry delay-- before trying to make the connection. The</span>
+<span class="sd">        retry delay is determined by the ``initial_retry_delay``, ``retry_delay_strategy``,</span>
+<span class="sd">        and ``retry_delay_reset_threshold`` parameters to :class:`SSEClient`.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_try_start</span><span class="p">(</span><span class="kc">False</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="SSEClient.close"><a class="viewcode-back" href="../../index.html#ld_eventsource.SSEClient.close">[docs]</a>    <span class="k">def</span> <span class="nf">close</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Permanently shuts down this client instance and closes any active connection.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__closed</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">interrupt</span><span class="p">()</span></div>
+    
+<div class="viewcode-block" id="SSEClient.interrupt"><a class="viewcode-back" href="../../index.html#ld_eventsource.SSEClient.interrupt">[docs]</a>    <span class="k">def</span> <span class="nf">interrupt</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Stops the stream connection if it is currently active.</span>
+
+<span class="sd">        The difference between this method and :meth:`close()` is that this method does not</span>
+<span class="sd">        permanently shut down the :class:`SSEClient`. If you try to read more events or call</span>
+<span class="sd">        :meth:`start()`, the client will try to reconnect to the stream. The behavior is</span>
+<span class="sd">        exactly the same as if the previous stream had been ended by the server.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">__connection_result</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">__interrupted</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">__connection_result</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">__connection_result</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_compute_next_retry_delay</span><span class="p">()</span></div>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">all</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Iterable</span><span class="p">[</span><span class="n">Action</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        An iterable series of notifications from the stream.</span>
+<span class="sd">        </span>
+<span class="sd">        Each of these can be any subclass of :class:`.Action`: :class:`.Event`, :class:`.Comment`,</span>
+<span class="sd">        :class:`.Start`, or :class:`.Fault`.</span>
+
+<span class="sd">        You can use :attr:`events` instead if you are only interested in Events.</span>
+
+<span class="sd">        Iterating over this property automatically starts or restarts the stream if it is not</span>
+<span class="sd">        already active, so you do not need to call :meth:`start()` unless you want to verify that</span>
+<span class="sd">        the stream is connected before trying to read events.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+            <span class="c1"># Reading implies starting the stream if it isn&#39;t already started. We might also</span>
+            <span class="c1"># be restarting since we could have been interrupted at any time.</span>
+            <span class="k">while</span> <span class="bp">self</span><span class="o">.</span><span class="n">__connection_result</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">fault</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_try_start</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span>
+                <span class="c1"># return either a Start action or a Fault action</span>
+                <span class="k">yield</span> <span class="n">Start</span><span class="p">()</span> <span class="k">if</span> <span class="n">fault</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">fault</span>
+            
+            <span class="n">lines</span> <span class="o">=</span> <span class="n">_BufferedLineReader</span><span class="o">.</span><span class="n">lines_from</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__connection_result</span><span class="o">.</span><span class="n">stream</span><span class="p">)</span>
+            <span class="n">reader</span> <span class="o">=</span> <span class="n">_SSEReader</span><span class="p">(</span><span class="n">lines</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">__last_event_id</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+            <span class="n">error</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="ne">Exception</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="k">for</span> <span class="n">ec</span> <span class="ow">in</span> <span class="n">reader</span><span class="o">.</span><span class="n">events_and_comments</span><span class="p">:</span>
+                    <span class="k">yield</span> <span class="n">ec</span>
+                    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">__interrupted</span><span class="p">:</span>
+                        <span class="k">break</span>
+                <span class="c1"># If we finished iterating all of reader.events_and_comments, it means the stream</span>
+                <span class="c1"># was closed without an error.</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">__connection_result</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">__closed</span><span class="p">:</span>
+                    <span class="c1"># It&#39;s normal to get an I/O error if we force-closed the stream to shut down</span>
+                    <span class="k">return</span>
+                <span class="n">error</span> <span class="o">=</span> <span class="n">e</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">__connection_result</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="k">finally</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">__last_event_id</span> <span class="o">=</span> <span class="n">reader</span><span class="o">.</span><span class="n">last_event_id</span>
+
+            <span class="c1"># We&#39;ve hit an error, so ask the ErrorStrategy what to do: raise an exception or yield a Fault.</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_compute_next_retry_delay</span><span class="p">()</span>
+            <span class="n">fail_or_continue</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">__current_error_strategy</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__current_error_strategy</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="n">error</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">fail_or_continue</span> <span class="o">==</span> <span class="n">ErrorStrategy</span><span class="o">.</span><span class="n">FAIL</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">error</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="c1"># If error is None, the stream was ended normally by the server. Just stop iterating.</span>
+                    <span class="k">yield</span> <span class="n">Fault</span><span class="p">(</span><span class="kc">None</span><span class="p">)</span>  <span class="c1"># this is only visible if you&#39;re reading from &quot;all&quot;</span>
+                    <span class="k">return</span>
+                <span class="k">raise</span> <span class="n">error</span>
+            <span class="k">yield</span> <span class="n">Fault</span><span class="p">(</span><span class="n">error</span><span class="p">)</span>
+            <span class="k">continue</span>  <span class="c1"># try to connect again</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">events</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Iterable</span><span class="p">[</span><span class="n">Event</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        An iterable series of :class:`.Event` objects received from the stream.</span>
+
+<span class="sd">        Use :attr:`all` instead if you also want to know about other kinds of occurrences.</span>
+
+<span class="sd">        Iterating over this property automatically starts or restarts the stream if it is not</span>
+<span class="sd">        already active, so you do not need to call :meth:`start()` unless you want to verify that</span>
+<span class="sd">        the stream is connected before trying to read events.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">all</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">item</span><span class="p">,</span> <span class="n">Event</span><span class="p">):</span>
+                <span class="k">yield</span> <span class="n">item</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">next_retry_delay</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        The retry delay that will be used for the next reconnection, in seconds, if the stream</span>
+<span class="sd">        has failed or ended.</span>
+<span class="sd">        </span>
+<span class="sd">        This is initially zero, because SSEClient does not compute a retry delay until there is</span>
+<span class="sd">        a failure. If you have just received an exception or a :class:`.Fault`, or if you were</span>
+<span class="sd">        iterating through events and the events ran out because the stream closed, the value</span>
+<span class="sd">        tells you how long SSEClient will sleep before the next reconnection attempt. The value</span>
+<span class="sd">        is computed by applying the configured :class:`.RetryDelayStrategy` to the base retry delay.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">__next_retry_delay</span>
+    
+    <span class="k">def</span> <span class="nf">_compute_next_retry_delay</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">__retry_delay_reset_threshold</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">__connected_time</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">connection_duration</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">__connected_time</span>
+            <span class="k">if</span> <span class="n">connection_duration</span> <span class="o">&gt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__retry_delay_reset_threshold</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">__current_retry_delay_strategy</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__base_retry_delay_strategy</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__next_retry_delay</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">__current_retry_delay_strategy</span> <span class="o">=</span> \
+            <span class="bp">self</span><span class="o">.</span><span class="n">__current_retry_delay_strategy</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__base_retry_delay</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_try_start</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">can_return_fault</span><span class="p">:</span> <span class="nb">bool</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Fault</span><span class="p">]:</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">__connection_result</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">None</span>
+        <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">__next_retry_delay</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">delay</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__next_retry_delay</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">__disconnected_time</span> <span class="o">==</span> <span class="mi">0</span> <span class="k">else</span> \
+                    <span class="bp">self</span><span class="o">.</span><span class="n">__next_retry_delay</span> <span class="o">-</span> <span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">__disconnected_time</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">delay</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">__logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Will reconnect after delay of </span><span class="si">%f</span><span class="s2">s&quot;</span> <span class="o">%</span> <span class="n">delay</span><span class="p">)</span>
+                    <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="n">delay</span><span class="p">)</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">__connection_result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__connection_client</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__last_event_id</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">__disconnected_time</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_compute_next_retry_delay</span><span class="p">()</span>
+                <span class="n">fail_or_continue</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">__current_error_strategy</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__current_error_strategy</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">fail_or_continue</span> <span class="o">==</span> <span class="n">ErrorStrategy</span><span class="o">.</span><span class="n">FAIL</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="n">e</span>
+                <span class="k">if</span> <span class="n">can_return_fault</span><span class="p">:</span>
+                    <span class="k">return</span> <span class="n">Fault</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
+                <span class="c1"># If can_return_fault is false, it means the caller explicitly called start(), in</span>
+                <span class="c1"># which case there&#39;s no way to return a Fault so we just keep retrying transparently.</span>
+                <span class="k">continue</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">__connected_time</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">__current_error_strategy</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__base_error_strategy</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">__interrupted</span> <span class="o">=</span> <span class="kc">False</span>
+            <span class="k">return</span> <span class="kc">None</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">last_event_id</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        The ID value, if any, of the last known event.</span>
+
+<span class="sd">        This can be set initially with the ``last_event_id`` parameter to :class:`SSEClient`,</span>
+<span class="sd">        and is updated whenever an event is received that has an ID. Whether event IDs are supported</span>
+<span class="sd">        depends on the server; it may ignore this value.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">__last_event_id</span>
+    
+    <span class="k">def</span> <span class="fm">__enter__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span>
+
+    <span class="k">def</span> <span class="fm">__exit__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="nb">type</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">traceback</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">close</span><span class="p">()</span></div>
+
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;SSEClient&#39;</span><span class="p">]</span>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2022, LaunchDarkly.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
