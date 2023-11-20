@@ -25,6 +25,15 @@ jobs:
         with:
           fetch-depth: 0 # If you only need the current version keep this.
 
+      - uses: actions/setup-python@v4
+        if: ${{ steps.release.outputs.releases_created }}
+        with:
+          python-version: 3.7
+
+      - name: Install poetry
+        if: ${{ steps.release.outputs.releases_created }}
+        run: pipx install poetry
+
       - uses: launchdarkly/gh-actions/actions/release-secrets@release-secrets-v1.0.0
         name: 'Get PyPI token'
         if: ${{ steps.release.outputs.releases_created }}
