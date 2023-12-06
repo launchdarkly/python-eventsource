@@ -145,6 +145,7 @@ class AIOSSEClient:
         """
         self.__closed = True
         await self.interrupt()
+        await self.__connection_client.close()
 
     async def interrupt(self):
         """
@@ -193,7 +194,8 @@ class AIOSSEClient:
                         break
                 # If we finished iterating all of reader.events_and_comments, it means the stream
                 # was closed without an error.
-                await self.__connection_result.close()
+                if self.__connection_result != None:
+                    await self.__connection_result.close()
                 self.__connection_result = None
             except Exception as e:
                 if self.__closed:

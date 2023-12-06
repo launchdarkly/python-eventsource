@@ -156,4 +156,4 @@ class _AIOHttpClientImpl:
     # TODO: Pretty sure this is going to have to be async
     async def close(self):
         if self.__should_close_session:
-            self.__session.close()
+            await self.__session.close()
