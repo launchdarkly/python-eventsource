@@ -3,6 +3,7 @@ from ld_eventsource.errors import *
 from ld_eventsource.config import *
 from ld_eventsource.reader import _BufferedLineReader, _AIOBufferedLineReader, _SSEReader, _AIOSSEReader
 
+import asyncio
 from aiohttp import ClientSession
 
 import logging
@@ -138,14 +139,14 @@ class AIOSSEClient:
         """
         await self._try_start(False)
 
-    def close(self):
+    async def close(self):
         """
         Permanently shuts down this client instance and closes any active connection.
         """
         self.__closed = True
-        self.interrupt()
+        await self.interrupt()
 
-    def interrupt(self):
+    async def interrupt(self):
         """
         Stops the stream connection if it is currently active.
 
@@ -156,7 +157,7 @@ class AIOSSEClient:
         """
         if self.__connection_result:
             self.__interrupted = True
-            self.__connection_result.close()
+            await self.__connection_result.close()
             self.__connection_result = None
             self._compute_next_retry_delay()
 
@@ -192,12 +193,14 @@ class AIOSSEClient:
                         break
                 # If we finished iterating all of reader.events_and_comments, it means the stream
                 # was closed without an error.
+                await self.__connection_result.close()
                 self.__connection_result = None
             except Exception as e:
                 if self.__closed:
                     # It's normal to get an I/O error if we force-closed the stream to shut down
                     return
                 error = e
+                await self.__connection_result.close()
                 self.__connection_result = None
             finally:
                 self.__last_event_id = reader.last_event_id
@@ -260,7 +263,7 @@ class AIOSSEClient:
                     self.__next_retry_delay - (time.time() - self.__disconnected_time)
                 if delay > 0:
                     self.__logger.info("Will reconnect after delay of %fs" % delay)
-                    time.sleep(delay)
+                    await asyncio.sleep(delay)
             try:
                 self.__connection_result = await self.__connection_client.aioconnect(self.__last_event_id)
             except Exception as e:

@@ -155,7 +155,7 @@ class AIOConnectionResult:
         """
         return self.__stream
 
-    def close(self):
+    async def close(self):
         """
         Does whatever is necessary to release the connection.
         """
@@ -167,7 +167,7 @@ class AIOConnectionResult:
         return self
 
     async def __aexit__(self, type, value, traceback):
-        self.close()
+        await self.close()
 
 
 # _HttpConnectStrategy and _HttpConnectionClient are defined here rather than in http.py to avoid
@@ -209,8 +209,8 @@ class _AIOHttpConnectionClient(ConnectionClient):
         stream, closer = await self.__impl.connect(last_event_id)
         return AIOConnectionResult(stream, closer)
 
-    def close(self):
-        self.__impl.close()
+    async def close(self):
+        await self.__impl.close()
 
 
 __all__ = ['ConnectStrategy', 'ConnectionClient', 'ConnectionResult']

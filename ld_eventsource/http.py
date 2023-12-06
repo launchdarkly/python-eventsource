@@ -132,7 +132,7 @@ class _AIOHttpClientImpl:
         request_options['headers'] = headers
 
         try:
-            resp = await self.__session.get(self.__params.url, headers=headers)
+            resp = await self.__session.get(self.__params.url, headers=headers, max_redirects=3)
             # resp = self.__pool.request(
             #     'GET',
             #     self.__params.url,
@@ -154,6 +154,6 @@ class _AIOHttpClientImpl:
         return resp.content.iter_any(), resp.close
 
     # TODO: Pretty sure this is going to have to be async
-    def close(self):
+    async def close(self):
         if self.__should_close_session:
             self.__session.close()
