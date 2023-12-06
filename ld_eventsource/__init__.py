@@ -1,1 +1,2 @@
-from ld_eventsource.sse_client import *
+from ld_eventsource.sse_client import SSEClient
+from ld_eventsource.aiosse_client import AIOSSEClient

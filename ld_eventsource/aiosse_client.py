@@ -1,14 +1,16 @@
 from ld_eventsource.actions import *
 from ld_eventsource.errors import *
 from ld_eventsource.config import *
-from ld_eventsource.reader import _BufferedLineReader, _SSEReader
+from ld_eventsource.reader import _BufferedLineReader, _AIOBufferedLineReader, _SSEReader, _AIOSSEReader
+
+from aiohttp import ClientSession
 
 import logging
 import time
-from typing import Iterable, Optional, Union
+from typing import Iterable, AsyncIterable, AsyncIterator, Optional, Union
 
 
-class SSEClient:
+class AIOSSEClient:
     """
     A client for reading a Server-Sent Events stream.
 
@@ -26,7 +28,7 @@ class SSEClient:
     (non-2xx status, 204 status, or invalid content type), it will not retry. This behavior can
     be customized with ``error_strategy``. The client will automatically follow 3xx redirects.
 
-    For any non-retryable error, if this is the first connection attempt then the constructor
+    async For any non-retryable error, if this is the first connection attempt then the constructor
     will throw an exception (such as :class:`.HTTPStatusError`). Or, if a
     successful connection was made so the constructor has already returned, but a
     non-retryable error occurs subsequently, the iterator properties will simply run out of
@@ -86,7 +88,7 @@ class SSEClient:
         :param logger: if provided, log messages will be written here
         """
         if isinstance(connect, str):
-            connect = ConnectStrategy.http(connect)
+            connect = ConnectStrategy.aiohttp(connect)
         elif not isinstance(connect, ConnectStrategy):
             raise TypeError("request must be either a string or ConnectStrategy")
 
@@ -108,14 +110,14 @@ class SSEClient:
         self.__logger = logger
 
         self.__connection_client = connect.create_client(logger)
-        self.__connection_result: Optional[ConnectionResult] = None
+        self.__connection_result: Optional[AIOConnectionResult] = None
         self.__connected_time: float = 0
         self.__disconnected_time: float = 0
 
         self.__closed = False
         self.__interrupted = False
 
-    def start(self):
+    async def start(self):
         """
         Attempts to start the stream if it is not already active.
 
@@ -134,7 +136,7 @@ class SSEClient:
         retry delay is determined by the ``initial_retry_delay``, ``retry_delay_strategy``,
         and ``retry_delay_reset_threshold`` parameters to :class:`SSEClient`.
         """
-        self._try_start(False)
+        await self._try_start(False)
 
     def close(self):
         """
@@ -159,7 +161,7 @@ class SSEClient:
             self._compute_next_retry_delay()
 
     @property
-    def all(self) -> Iterable[Action]:
+    async def all(self) -> AsyncIterable[Action]:
         """
         An iterable series of notifications from the stream.
 
@@ -176,15 +178,15 @@ class SSEClient:
             # Reading implies starting the stream if it isn't already started. We might also
             # be restarting since we could have been interrupted at any time.
             while self.__connection_result is None:
-                fault = self._try_start(True)
+                fault = await self._try_start(True)
                 # return either a Start action or a Fault action
                 yield Start() if fault is None else fault
 
-            lines = _BufferedLineReader.lines_from(self.__connection_result.stream)
-            reader = _SSEReader(lines, self.__last_event_id, None)
+            lines = _AIOBufferedLineReader.lines_from(self.__connection_result.stream)
+            reader = _AIOSSEReader(lines, self.__last_event_id, None)
             error: Optional[Exception] = None
             try:
-                for ec in reader.events_and_comments:
+                async for ec in reader.events_and_comments:
                     yield ec
                     if self.__interrupted:
                         break
@@ -213,7 +215,7 @@ class SSEClient:
             continue  # try to connect again
 
     @property
-    def events(self) -> Iterable[Event]:
+    async def events(self) -> AsyncIterable[Event]:
         """
         An iterable series of :class:`.Event` objects received from the stream.
 
@@ -223,7 +225,7 @@ class SSEClient:
         already active, so you do not need to call :meth:`start()` unless you want to verify that
         the stream is connected before trying to read events.
         """
-        for item in self.all:
+        async for item in self.all:
             if isinstance(item, Event):
                 yield item
 
@@ -249,7 +251,7 @@ class SSEClient:
         self.__next_retry_delay, self.__current_retry_delay_strategy = \
             self.__current_retry_delay_strategy.apply(self.__base_retry_delay)
 
-    def _try_start(self, can_return_fault: bool) -> Optional[Fault]:
+    async def _try_start(self, can_return_fault: bool) -> Optional[Fault]:
         if self.__connection_result is not None:
             return None
         while True:
@@ -260,7 +262,7 @@ class SSEClient:
                     self.__logger.info("Will reconnect after delay of %fs" % delay)
                     time.sleep(delay)
             try:
-                self.__connection_result = self.__connection_client.connect(self.__last_event_id)
+                self.__connection_result = await self.__connection_client.aioconnect(self.__last_event_id)
             except Exception as e:
                 self.__disconnected_time = time.time()
                 self._compute_next_retry_delay()

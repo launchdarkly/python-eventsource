@@ -1,15 +1,17 @@
 from __future__ import annotations
 from logging import Logger
-from typing import Callable, Iterator, Optional, Union
+from typing import Callable, Iterator, AsyncIterator, Optional, Union
 from urllib3 import PoolManager
 
-from ld_eventsource.http import _HttpClientImpl, _HttpConnectParams
+from aiohttp import ClientSession
+
+from ld_eventsource.http import _HttpClientImpl, _HttpConnectParams, _AIOHttpClientImpl, _AIOHttpConnectParams
 
 
 class ConnectStrategy:
     """
     An abstraction for how :class:`.SSEClient` should obtain an input stream.
-    
+
     The default implementation is :meth:`http()`, which makes HTTP requests with ``urllib3``.
     Or, if you want to consume an input stream from some other source, you can create your own
     subclass of :class:`ConnectStrategy`.
@@ -29,7 +31,16 @@ class ConnectStrategy:
         :param logger: the logger being used by the SSEClient
         """
         raise NotImplementedError("ConnectStrategy base class cannot be used by itself")
-    
+
+    @staticmethod
+    def aiohttp(
+        url: str,
+        headers: Optional[dict]=None,
+        session: Optional[ClientSession]=None
+    ) -> ConnectStrategy:
+        return _AIOHttpConnectStrategy(_AIOHttpConnectParams(url, headers, session))
+
+
     @staticmethod
     def http(
         url: str,
@@ -66,7 +77,17 @@ class ConnectionClient:
         :return: a :class:`ConnectionResult` representing the stream
         """
         raise NotImplementedError("ConnectionClient base class cannot be used by itself")
-    
+
+    async def aioconnect(self, last_event_id: Optional[str]) -> AIOConnectionResult:
+        """
+        Attempts to connect to a stream. Raises an exception if unsuccessful.
+
+        :param last_event_id: the current value of :attr:`SSEClient.last_event_id`
+        (should be sent to the server to support resuming an interrupted stream)
+        :return: a :class:`ConnectionResult` representing the stream
+        """
+        raise NotImplementedError("ConnectionClient base class cannot be used by itself")
+
     def close(self):
         """
         Does whatever is necessary to release resources when the SSEClient is closed.
@@ -92,7 +113,7 @@ class ConnectionResult:
     ):
         self.__stream = stream
         self.__closer = closer
-    
+
     @property
     def stream(self) -> Iterator[bytes]:
         """
@@ -115,13 +136,47 @@ class ConnectionResult:
         self.close()
 
 
+class AIOConnectionResult:
+    """
+    The return type of :meth:`ConnectionClient.connect()`.
+    """
+    def __init__(
+        self,
+        stream: AsyncIterator[bytes],
+        closer: Optional[Callable]
+    ):
+        self.__stream = stream
+        self.__closer = closer
+
+    @property
+    def stream(self) -> AsyncIterator[bytes]:
+        """
+        An iterator that returns chunks of data.
+        """
+        return self.__stream
+
+    def close(self):
+        """
+        Does whatever is necessary to release the connection.
+        """
+        if self.__closer:
+            self.__closer()
+            self.__closer = None
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, type, value, traceback):
+        self.close()
+
+
 # _HttpConnectStrategy and _HttpConnectionClient are defined here rather than in http.py to avoid
 # a circular module reference.
 
 class _HttpConnectStrategy(ConnectStrategy):
     def __init__(self, params: _HttpConnectParams):
         self.__params = params
-    
+
     def create_client(self, logger: Logger) -> ConnectionClient:
         return _HttpConnectionClient(self.__params, logger)
 
@@ -133,6 +188,26 @@ class _HttpConnectionClient(ConnectionClient):
     def connect(self, last_event_id: Optional[str]) -> ConnectionResult:
         stream, closer = self.__impl.connect(last_event_id)
         return ConnectionResult(stream, closer)
+
+    def close(self):
+        self.__impl.close()
+
+
+class _AIOHttpConnectStrategy(ConnectStrategy):
+    def __init__(self, params: _AIOHttpConnectParams):
+        self.__params = params
+
+    def create_client(self, logger: Logger) -> ConnectionClient:
+        return _AIOHttpConnectionClient(self.__params, logger)
+
+
+class _AIOHttpConnectionClient(ConnectionClient):
+    def __init__(self, params: _AIOHttpConnectParams, logger: Logger):
+        self.__impl = _AIOHttpClientImpl(params, logger)
+
+    async def aioconnect(self, last_event_id: Optional[str]) -> AIOConnectionResult:
+        stream, closer = await self.__impl.connect(last_event_id)
+        return AIOConnectionResult(stream, closer)
 
     def close(self):
         self.__impl.close()
