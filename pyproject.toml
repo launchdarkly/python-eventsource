@@ -46,6 +46,9 @@ optional = true
 
 [tool.poetry.group.contract-tests.dependencies]
 Flask = "2.2.5"
+fastapi = "^0.104.1"
+uvicorn = "^0.24.0.post1"
+aiohttp = "^3.9.1"
 
 
 [tool.poetry.group.docs]

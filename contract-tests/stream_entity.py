@@ -5,12 +5,15 @@ import sys
 import threading
 import traceback
 import urllib3
+import asyncio
+import aiohttp
 
 # Import ld_eventsource from parent directory
 sys.path.insert(1, os.path.join(sys.path[0], '..'))
 from ld_eventsource import *
 from ld_eventsource.actions import *
 from ld_eventsource.config import *
+from aiohttp import ClientSession
 
 
 http_client = urllib3.PoolManager()
@@ -28,22 +31,22 @@ class StreamEntity:
         self.closed = False
         self.callback_counter = 0
         self.sse = None
+        self.__client_task = asyncio.create_task(self.run())
+        self._session = None
+        if self.options.get("readTimeoutMs") is not None:
+            self._session = aiohttp.ClientSession(read_timeout=self.options.get("readTimeoutMs") / 1_000.0)
 
-        thread = threading.Thread(target=self.run)
-        thread.start()
-
-    def run(self):
+    async def run(self):
         stream_url = self.options["streamUrl"]
         try:
             self.log.info('Opening stream from %s', stream_url)
-            connect = ConnectStrategy.http(
+
+            connect = ConnectStrategy.aiohttp(
                 url=stream_url,
                 headers=self.options.get("headers"),
-                urllib3_request_options=None if self.options.get("readTimeoutMs") is None else {
-                    "timeout": urllib3.Timeout(read=millis_to_seconds(self.options.get("readTimeoutMs")))
-                }
+                session=self._session
             )
-            sse = SSEClient(
+            sse = AIOSSEClient(
                 connect,
                 initial_retry_delay=millis_to_seconds(self.options.get("initialDelayMs")),
                 last_event_id=self.options.get("lastEventId"),
@@ -52,7 +55,7 @@ class StreamEntity:
                 logger=self.log
             )
             self.sse = sse
-            for item in sse.all:
+            async for item in sse.all:
                 if isinstance(item, Event):
                     self.log.info('Received event from stream (%s)', item.event)
                     self.send_message({
@@ -114,10 +117,14 @@ class StreamEntity:
             if not self.closed:
                 self.log.error('Callback request failed: %s', e)
 
-    def close(self):
+    async def close(self):
         self.closed = True
         # SSEClient.close() doesn't currently work, due to urllib3 hanging when we try to force-close a
         # socket that's doing a blocking read. However, in the context of the contract tests, we know that
         # the server will be closing the connection anyway when a test is done-- so all we need to do is
         # tell ourselves not to retry the connection when it fails, and setting self.closed does that.
         self.log.info('Test ended')
+        self.__client_task.cancel()
+        await self.sse.close()
+        if self._session:
+            await self._session.close()
