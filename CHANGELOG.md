@@ -2,6 +2,20 @@
 
 All notable changes to the LaunchDarkly SSE Client for Python will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org).
 
+## [1.1.1](https://github.com/launchdarkly/python-eventsource/compare/1.1.0...1.1.1) (2024-03-01)
+
+
+### Bug Fixes
+
+* **deps:** Bump jsonpickle to fix CVE-2020-22083 ([#23](https://github.com/launchdarkly/python-eventsource/issues/23)) ([3487311](https://github.com/launchdarkly/python-eventsource/commit/3487311a768cb557d39d8aa2dc57b569d9a55b0c))
+* Raise minimum urllib3 package to 1.26.0 ([#26](https://github.com/launchdarkly/python-eventsource/issues/26)) ([ca5408d](https://github.com/launchdarkly/python-eventsource/commit/ca5408dc822ec8e9b8ac6674c3e72f5b84954ac0)), closes [#25](https://github.com/launchdarkly/python-eventsource/issues/25)
+
+
+### Documentation
+
+* Add status badge ([#19](https://github.com/launchdarkly/python-eventsource/issues/19)) ([777330b](https://github.com/launchdarkly/python-eventsource/commit/777330b303641bbe3983d2599ceb82a098d2ab98))
+* Fix GH pages rendering of published docs ([#21](https://github.com/launchdarkly/python-eventsource/issues/21)) ([0a7ae7a](https://github.com/launchdarkly/python-eventsource/commit/0a7ae7ab967f1bbc374f572f799c4347703ac1c8))
+
 ## [1.1.0](https://github.com/launchdarkly/python-eventsource/compare/1.0.1...1.1.0) (2023-11-16)
 
 
