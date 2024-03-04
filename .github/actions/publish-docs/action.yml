@@ -9,9 +9,10 @@ runs:
   using: composite
   steps:
     - name: Add .nojekyll file
+      shell: bash
       run: touch docs/build/html/.nojekyll
 
-    - uses: launchdarkly/gh-actions/actions/publish-pages@publish-pages-v1.0.1
+    - uses: launchdarkly/gh-actions/actions/publish-pages@publish-pages-v1.0.2
       name: 'Publish to Github pages'
       with:
         docs_path: docs/build/html/
