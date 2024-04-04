@@ -13,7 +13,6 @@ classifiers = [
     "License :: OSI Approved :: Apache Software License",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.7",
     "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
@@ -28,15 +27,14 @@ packages = [
 ]
 
 [tool.poetry.dependencies]
-python = ">=3.7"
+python = ">=3.8"
 urllib3 = ">=1.26.0,<3"
 
 
 [tool.poetry.group.dev.dependencies]
 mock = ">=2.0.0"
 pytest = ">=2.8"
-pytest-mypy = "0.8.1"
-mypy = ">=1.4.1"
+mypy = "^1.4.0"
 
 
 [tool.poetry.group.contract-tests]
@@ -63,7 +61,7 @@ urllib3 = ">=1.26.0"
 jinja2 = "3.0.0"
 
 [tool.mypy]
-python_version = "3.7"
+python_version = "3.8"
 ignore_missing_imports = true
 install_types = true
 non_interactive = true
