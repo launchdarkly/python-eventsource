@@ -18,7 +18,7 @@ This is a synchronous implementation which blocks the caller's thread when readi
 
 ## Supported Python versions
 
-This version of the package is compatible with Python 3.7 and higher.
+This version of the package is compatible with Python 3.8 and higher.
 
 ## Contributing
 
