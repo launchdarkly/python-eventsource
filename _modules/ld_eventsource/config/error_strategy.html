@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html class="writer-html4" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ld_eventsource.config.error_strategy &mdash; launchdarkly-eventsource 1.2.0 documentation</title><link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  <script id="documentation_options" data-url_root="../../../" src="../../../_static/documentation_options.js"></script>
+        <script type="text/javascript" src="../../../_static/jquery.js"></script>
+        <script type="text/javascript" src="../../../_static/underscore.js"></script>
+        <script type="text/javascript" src="../../../_static/doctools.js"></script>
+        <script type="text/javascript" src="../../../_static/language_data.js"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            launchdarkly-eventsource
+          </a>
+              <div class="version">
+                1.2.0
+              </div>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <!-- Local TOC -->
+              <div class="local-toc"></div>
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">launchdarkly-eventsource</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">ld_eventsource.config.error_strategy</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for ld_eventsource.config.error_strategy</h1><div class="highlight"><pre>
+<span></span><span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">annotations</span>
+<span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Tuple</span>
+
+
+<div class="viewcode-block" id="ErrorStrategy"><a class="viewcode-back" href="../../../index.html#ld_eventsource.config.ErrorStrategy">[docs]</a><span class="k">class</span> <span class="nc">ErrorStrategy</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Base class of strategies for determining how SSEClient should handle a stream error or the</span>
+<span class="sd">    end of a stream.</span>
+<span class="sd">    </span>
+<span class="sd">    The parameter that SSEClient passes to :meth:`apply()` is either ``None`` if the server ended</span>
+<span class="sd">    the stream normally, or an exception. If it is an exception, it could be an I/O exception</span>
+<span class="sd">    (failure to connect, broken connection, etc.), or one of the error types defined in this</span>
+<span class="sd">    package such as :class:`.HTTPStatusError`.</span>
+
+<span class="sd">    The two options for the result are:</span>
+
+<span class="sd">    * :const:`FAIL`: This means that SSEClient should throw an exception to the caller-- or, in</span>
+<span class="sd">      the case of a stream ending without an error, it should simply stop iterating through events.</span>
+<span class="sd">    * :const:`CONTINUE`: This means that you intend to keep reading events, so SSEClient should</span>
+<span class="sd">      transparently retry the connection. If you are reading from :attr:`.SSEClient.all`,</span>
+<span class="sd">      you will also receive a :class:`.Fault` describing the error.</span>
+
+<span class="sd">    With either option, it is still always possible to explicitly reconnect the stream by calling</span>
+<span class="sd">    :meth:`.SSEClient.start()` again, or simply by trying to read from :attr:`.SSEClient.events`</span>
+<span class="sd">    or :attr:`.SSEClient.all` again.</span>
+<span class="sd">    </span>
+<span class="sd">    Subclasses should be immutable. To implement strategies that behave differently on consecutive</span>
+<span class="sd">    retries, the strategy should return a new instance of its own class as the second return value</span>
+<span class="sd">    from ``apply``, rather than modifying the state of the existing instance. This makes it easy</span>
+<span class="sd">    for SSEClient to reset to the original error-handling state when appropriate by simply reusing</span>
+<span class="sd">    the original instance.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">FAIL</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="n">CONTINUE</span> <span class="o">=</span> <span class="kc">False</span>
+
+<div class="viewcode-block" id="ErrorStrategy.apply"><a class="viewcode-back" href="../../../index.html#ld_eventsource.config.ErrorStrategy.apply">[docs]</a>    <span class="k">def</span> <span class="nf">apply</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">exception</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="ne">Exception</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">bool</span><span class="p">,</span> <span class="n">ErrorStrategy</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Applies the strategy to determine what to do after a failure.</span>
+
+<span class="sd">        :param exception: an exception, or ``None`` if the stream simply ended</span>
+<span class="sd">        :return: a tuple where the first element is either :const:`FAIL` to raise an exception</span>
+<span class="sd">            or :const:`CONTINUE` to continue, and the second element is the strategy object to</span>
+<span class="sd">            use next time (which could be ``self``)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">&quot;ErrorStrategy base class cannot be used by itself&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="ErrorStrategy.always_fail"><a class="viewcode-back" href="../../../index.html#ld_eventsource.config.ErrorStrategy.always_fail">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">always_fail</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">ErrorStrategy</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Specifies that SSEClient should always treat an error as a stream failure. This is the</span>
+<span class="sd">        default behavior if you do not configure another.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">_LambdaErrorStrategy</span><span class="p">(</span><span class="k">lambda</span> <span class="n">e</span><span class="p">:</span> <span class="p">(</span><span class="n">ErrorStrategy</span><span class="o">.</span><span class="n">FAIL</span><span class="p">,</span> <span class="kc">None</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="ErrorStrategy.always_continue"><a class="viewcode-back" href="../../../index.html#ld_eventsource.config.ErrorStrategy.always_continue">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">always_continue</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">ErrorStrategy</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Specifies that SSEClient should never raise an exception, but should transparently retry</span>
+<span class="sd">        or, if :attr:`.SSEClient.all` is being used, return the error as a :class:`.Fault`.</span>
+
+<span class="sd">        Be aware that using this mode could cause connection attempts to block indefinitely if</span>
+<span class="sd">        the server is unavailable.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">_LambdaErrorStrategy</span><span class="p">(</span><span class="k">lambda</span> <span class="n">e</span><span class="p">:</span> <span class="p">(</span><span class="n">ErrorStrategy</span><span class="o">.</span><span class="n">CONTINUE</span><span class="p">,</span> <span class="kc">None</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="ErrorStrategy.continue_with_max_attempts"><a class="viewcode-back" href="../../../index.html#ld_eventsource.config.ErrorStrategy.continue_with_max_attempts">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">continue_with_max_attempts</span><span class="p">(</span><span class="n">max_attempts</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ErrorStrategy</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Specifies that SSEClient should automatically retry after an error for up to this</span>
+<span class="sd">        number of consecutive attempts, but should fail after that point.</span>
+
+<span class="sd">        :param max_attempts: the maximum number of consecutive retries</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">_MaxAttemptsErrorStrategy</span><span class="p">(</span><span class="n">max_attempts</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span></div>
+    
+<div class="viewcode-block" id="ErrorStrategy.continue_with_time_limit"><a class="viewcode-back" href="../../../index.html#ld_eventsource.config.ErrorStrategy.continue_with_time_limit">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">continue_with_time_limit</span><span class="p">(</span><span class="n">max_time</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ErrorStrategy</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Specifies that SSEClient should automatically retry after a failure and can retry</span>
+<span class="sd">        repeatedly until this amount of time has elapsed, but should fail after that point.</span>
+
+<span class="sd">        :param max_time: the time limit, in seconds</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">_TimeLimitErrorStrategy</span><span class="p">(</span><span class="n">max_time</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="ErrorStrategy.from_lambda"><a class="viewcode-back" href="../../../index.html#ld_eventsource.config.ErrorStrategy.from_lambda">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">from_lambda</span><span class="p">(</span><span class="n">fn</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[[</span><span class="n">Optional</span><span class="p">[</span><span class="ne">Exception</span><span class="p">]],</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">bool</span><span class="p">,</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ErrorStrategy</span><span class="p">]]])</span> <span class="o">-&gt;</span> <span class="n">ErrorStrategy</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Convenience method for creating an ErrorStrategy whose ``apply`` method is equivalent to</span>
+<span class="sd">        the given lambda.</span>
+<span class="sd">        </span>
+<span class="sd">        The one difference is that the second return value is an ``Optional[ErrorStrategy]`` which</span>
+<span class="sd">        can be None to mean &quot;no change&quot;, since the lambda cannot reference the strategy&#39;s ``self``.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">_LambdaErrorStrategy</span><span class="p">(</span><span class="n">fn</span><span class="p">)</span></div></div>
+
+
+<span class="k">class</span> <span class="nc">_LambdaErrorStrategy</span><span class="p">(</span><span class="n">ErrorStrategy</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fn</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[[</span><span class="n">Optional</span><span class="p">[</span><span class="ne">Exception</span><span class="p">]],</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">bool</span><span class="p">,</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ErrorStrategy</span><span class="p">]]]):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__fn</span> <span class="o">=</span> <span class="n">fn</span>
+    
+    <span class="k">def</span> <span class="nf">apply</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">exception</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="ne">Exception</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">bool</span><span class="p">,</span> <span class="n">ErrorStrategy</span><span class="p">]:</span>
+        <span class="n">should_raise</span><span class="p">,</span> <span class="n">maybe_next</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__fn</span><span class="p">(</span><span class="n">exception</span><span class="p">)</span>
+        <span class="k">return</span> <span class="p">(</span><span class="n">should_raise</span><span class="p">,</span> <span class="n">maybe_next</span> <span class="ow">or</span> <span class="bp">self</span><span class="p">)</span>
+
+<span class="k">class</span> <span class="nc">_MaxAttemptsErrorStrategy</span><span class="p">(</span><span class="n">ErrorStrategy</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">max_attempts</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">counter</span><span class="p">:</span> <span class="nb">int</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__max_attempts</span> <span class="o">=</span> <span class="n">max_attempts</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__counter</span> <span class="o">=</span> <span class="n">counter</span>
+    
+    <span class="k">def</span> <span class="nf">apply</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">exception</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="ne">Exception</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">bool</span><span class="p">,</span> <span class="n">ErrorStrategy</span><span class="p">]:</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">__counter</span> <span class="o">&gt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__max_attempts</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">(</span><span class="n">ErrorStrategy</span><span class="o">.</span><span class="n">FAIL</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span>
+        <span class="k">return</span> <span class="p">(</span><span class="n">ErrorStrategy</span><span class="o">.</span><span class="n">CONTINUE</span><span class="p">,</span> <span class="n">_MaxAttemptsErrorStrategy</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__max_attempts</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">__counter</span> <span class="o">+</span> <span class="mi">1</span><span class="p">))</span>
+
+<span class="k">class</span> <span class="nc">_TimeLimitErrorStrategy</span><span class="p">(</span><span class="n">ErrorStrategy</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">max_time</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">start_time</span><span class="p">:</span> <span class="nb">float</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__max_time</span> <span class="o">=</span> <span class="n">max_time</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__start_time</span> <span class="o">=</span> <span class="n">start_time</span>
+    
+    <span class="k">def</span> <span class="nf">apply</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">exception</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="ne">Exception</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">bool</span><span class="p">,</span> <span class="n">ErrorStrategy</span><span class="p">]:</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">__start_time</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">(</span><span class="n">ErrorStrategy</span><span class="o">.</span><span class="n">CONTINUE</span><span class="p">,</span> <span class="n">_TimeLimitErrorStrategy</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__max_time</span><span class="p">,</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()))</span>
+        <span class="k">if</span> <span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">__start_time</span><span class="p">)</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">__max_time</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">(</span><span class="n">ErrorStrategy</span><span class="o">.</span><span class="n">CONTINUE</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span>
+        <span class="k">return</span> <span class="p">(</span><span class="n">ErrorStrategy</span><span class="o">.</span><span class="n">FAIL</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span>
+
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;ErrorStrategy&#39;</span><span class="p">]</span>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2022, LaunchDarkly.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
