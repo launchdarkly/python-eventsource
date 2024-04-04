@@ -4,7 +4,7 @@ from ld_eventsource import *
 from ld_eventsource.config import *
 from ld_eventsource.errors import *
 
-from testing.http_util import *
+from ld_eventsource.testing.http_util import *
 
 from logging import Logger
 from typing import Iterable, Iterator, List, Optional

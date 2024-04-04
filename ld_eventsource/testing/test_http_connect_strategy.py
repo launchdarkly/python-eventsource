@@ -1,7 +1,7 @@
 from ld_eventsource.config.connect_strategy import *
 
-from testing.helpers import *
-from testing.http_util import *
+from ld_eventsource.testing.helpers import *
+from ld_eventsource.testing.http_util import *
 
 import logging
 from urllib3.exceptions import ProtocolError
@@ -87,7 +87,7 @@ def test_http_io_error():
                 raise Exception("expected exception, did not get one")
             except ProtocolError as e:
                 pass
-    
+
 def test_auto_redirect_301():
     with start_server() as server:
         with make_stream() as stream:

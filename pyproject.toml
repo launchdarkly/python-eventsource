@@ -21,9 +21,9 @@ classifiers = [
     "Topic :: Software Development",
     "Topic :: Software Development :: Libraries",
 ]
-packages = [
-    { include = "ld_eventsource" },
-    { include = "testing" },
+packages = [ { include = "ld_eventsource" } ]
+exclude = [
+    { path = "ld_eventsource/testing", format = "wheel" }
 ]
 
 [tool.poetry.dependencies]

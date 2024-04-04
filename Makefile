@@ -31,8 +31,7 @@ test: install
 .PHONY: lint
 lint: #! Run type analysis and linting checks
 lint: install
-	poetry run python --version
-	poetry run mypy ld_eventsource testing
+	poetry run mypy ld_eventsource
 
 #
 # Documentation generation
