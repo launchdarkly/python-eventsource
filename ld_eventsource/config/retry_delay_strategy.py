@@ -6,7 +6,7 @@ from typing import Callable, Optional, Tuple
 
 class RetryDelayStrategy:
     """Base class of strategies for computing how long to wait before retrying a connection.
-    
+
     The default behavior, provided by :meth:`default()`, provides customizable exponential backoff
     and jitter. Applications may also create their own subclasses of RetryDelayStrategy if they
     desire different behavior. It is generally a best practice to use backoff and jitter, to avoid
@@ -51,12 +51,12 @@ class RetryDelayStrategy:
           equal to the current base delay minus a pseudo-random number equal to that ratio times itself.
           For instance, a jitter multiplier of 0.25 would mean that a base delay of 1000 is changed to a
           value in the range [750, 1000].
-        
-        
+
+
         :param max_delay: the maximum possible delay value, in seconds; default is 30 seconds
         :param backoff_multiplier: the exponential backoff factor
         :param jitter_multiplier: a fraction from 0.0 to 1.0 for how much of the delay may be
-        pseudo-randomly subtracted
+            pseudo-randomly subtracted
         """
         return _DefaultRetryDelayStrategy(max_delay or 0, backoff_multiplier, jitter_multiplier or 0,
             0, _ReusableRandom(time.time()))
@@ -66,7 +66,7 @@ class RetryDelayStrategy:
         """
         Convenience method for creating a RetryDelayStrategy whose ``apply`` method is equivalent to
         the given lambda.
-        
+
         The one difference is that the second return value is an ``Optional[RetryDelayStrategy]`` which
         can be None to mean "no change", since the lambda cannot reference the strategy's ``self``.
         """
@@ -101,7 +101,7 @@ class _DefaultRetryDelayStrategy(RetryDelayStrategy):
             # state as our previous Random before using it.
             random = random.clone()
             adjusted_delay -= (random.random() * self.__jitter_multiplier * adjusted_delay)
-        
+
         next_strategy = _DefaultRetryDelayStrategy(
             self.__max_delay,
             self.__backoff_multiplier,
@@ -114,7 +114,7 @@ class _DefaultRetryDelayStrategy(RetryDelayStrategy):
 class _LambdaRetryDelayStrategy(RetryDelayStrategy):
     def __init__(self, fn: Callable[[float], Tuple[float, Optional[RetryDelayStrategy]]]):
         self.__fn = fn
-    
+
     def apply(self, base_delay: float) -> Tuple[float, RetryDelayStrategy]:
         delay, maybe_next = self.__fn(base_delay)
         return (delay, maybe_next or self)
@@ -123,7 +123,7 @@ class _ReusableRandom:
     def __init__(self, seed: float):
         self.__seed = seed
         self.__random = Random(seed)
-    
+
     def clone(self):
         state = self.__random.getstate()
         ret = _ReusableRandom(self.__seed)

@@ -9,7 +9,7 @@ from ld_eventsource.http import _HttpClientImpl, _HttpConnectParams
 class ConnectStrategy:
     """
     An abstraction for how :class:`.SSEClient` should obtain an input stream.
-    
+
     The default implementation is :meth:`http()`, which makes HTTP requests with ``urllib3``.
     Or, if you want to consume an input stream from some other source, you can create your own
     subclass of :class:`ConnectStrategy`.
@@ -29,7 +29,7 @@ class ConnectStrategy:
         :param logger: the logger being used by the SSEClient
         """
         raise NotImplementedError("ConnectStrategy base class cannot be used by itself")
-    
+
     @staticmethod
     def http(
         url: str,
@@ -62,11 +62,11 @@ class ConnectionClient:
         Attempts to connect to a stream. Raises an exception if unsuccessful.
 
         :param last_event_id: the current value of :attr:`SSEClient.last_event_id`
-        (should be sent to the server to support resuming an interrupted stream)
+            (should be sent to the server to support resuming an interrupted stream)
         :return: a :class:`ConnectionResult` representing the stream
         """
         raise NotImplementedError("ConnectionClient base class cannot be used by itself")
-    
+
     def close(self):
         """
         Does whatever is necessary to release resources when the SSEClient is closed.
@@ -92,7 +92,7 @@ class ConnectionResult:
     ):
         self.__stream = stream
         self.__closer = closer
-    
+
     @property
     def stream(self) -> Iterator[bytes]:
         """
@@ -121,7 +121,7 @@ class ConnectionResult:
 class _HttpConnectStrategy(ConnectStrategy):
     def __init__(self, params: _HttpConnectParams):
         self.__params = params
-    
+
     def create_client(self, logger: Logger) -> ConnectionClient:
         return _HttpConnectionClient(self.__params, logger)
 

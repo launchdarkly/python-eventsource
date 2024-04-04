@@ -2,7 +2,7 @@ from ld_eventsource import *
 from ld_eventsource.actions import *
 from ld_eventsource.config import *
 
-from testing.helpers import *
+from ld_eventsource.testing.helpers import *
 
 
 def test_retry_during_initial_connect_succeeds():
@@ -88,7 +88,7 @@ def test_all_iterator_continues_after_retry():
 
         item4 = next(all)
         assert isinstance(item4, Start)
-        
+
         item5 = next(all)
         assert isinstance(item5, Event)
         assert item5.data == 'data2'
@@ -125,10 +125,10 @@ def test_can_interrupt_and_restart_stream():
 
         item3 = next(all)
         assert isinstance(item3, Fault)
-        
+
         item4 = next(all)
         assert isinstance(item4, Start)
-        
+
         item5 = next(all)
         assert isinstance(item5, Event)
         assert item5.data == 'data3'

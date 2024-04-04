@@ -1,8 +1,8 @@
 from ld_eventsource import *
 from ld_eventsource.config import *
 
-from testing.helpers import *
-from testing.http_util import *
+from ld_eventsource.testing.helpers import *
+from ld_eventsource.testing.http_util import *
 
 # Tests of basic SSEClient behavior using real HTTP requests.
 
