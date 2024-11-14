@@ -4,7 +4,6 @@ import os
 import sys
 from logging.config import dictConfig
 
-import urllib3
 from flask import Flask, request
 from flask.logging import default_handler
 from stream_entity import StreamEntity
@@ -30,7 +29,7 @@ dictConfig({
         'handlers': ['console']
     },
     'loggers': {
-        'werkzeug': { 'level': 'ERROR' } # disable irrelevant Flask app logging
+        'werkzeug': {'level': 'ERROR'}  # disable irrelevant Flask app logging
     }
 })
 
