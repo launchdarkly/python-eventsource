@@ -35,9 +35,9 @@ class ConnectStrategy:
     @staticmethod
     def http(
         url: str,
-        headers: Optional[dict]=None,
-        pool: Optional[PoolManager]=None,
-        urllib3_request_options: Optional[dict]=None
+        headers: Optional[dict] = None,
+        pool: Optional[PoolManager] = None,
+        urllib3_request_options: Optional[dict] = None,
     ) -> ConnectStrategy:
         """
         Creates the default HTTP implementation, specifying request parameters.
@@ -48,7 +48,9 @@ class ConnectStrategy:
         :param urllib3_request_options: optional ``kwargs`` to add to the ``request`` call; these
             can include any parameters supported by ``urllib3``, such as ``timeout``
         """
-        return _HttpConnectStrategy(_HttpConnectParams(url, headers, pool, urllib3_request_options))
+        return _HttpConnectStrategy(
+            _HttpConnectParams(url, headers, pool, urllib3_request_options)
+        )
 
 
 class ConnectionClient:
@@ -67,7 +69,9 @@ class ConnectionClient:
             (should be sent to the server to support resuming an interrupted stream)
         :return: a :class:`ConnectionResult` representing the stream
         """
-        raise NotImplementedError("ConnectionClient base class cannot be used by itself")
+        raise NotImplementedError(
+            "ConnectionClient base class cannot be used by itself"
+        )
 
     def close(self):
         """
@@ -82,16 +86,12 @@ class ConnectionClient:
         self.close()
 
 
-
 class ConnectionResult:
     """
     The return type of :meth:`ConnectionClient.connect()`.
     """
-    def __init__(
-        self,
-        stream: Iterator[bytes],
-        closer: Optional[Callable]
-    ):
+
+    def __init__(self, stream: Iterator[bytes], closer: Optional[Callable]):
         self.__stream = stream
         self.__closer = closer
 

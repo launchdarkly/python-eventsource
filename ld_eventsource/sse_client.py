@@ -42,14 +42,14 @@ class SSEClient:
     """
 
     def __init__(
-        self, 
+        self,
         connect: Union[str, ConnectStrategy],
-        initial_retry_delay: float=1,
-        retry_delay_strategy: Optional[RetryDelayStrategy]=None,
-        retry_delay_reset_threshold: float=60,
-        error_strategy: Optional[ErrorStrategy]=None,
-        last_event_id: Optional[str]=None,
-        logger: Optional[logging.Logger]=None
+        initial_retry_delay: float = 1,
+        retry_delay_strategy: Optional[RetryDelayStrategy] = None,
+        retry_delay_reset_threshold: float = 60,
+        error_strategy: Optional[ErrorStrategy] = None,
+        last_event_id: Optional[str] = None,
+        logger: Optional[logging.Logger] = None,
     ):
         """
         Creates a client instance.
@@ -91,7 +91,9 @@ class SSEClient:
             raise TypeError("request must be either a string or ConnectStrategy")
 
         self.__base_retry_delay = initial_retry_delay
-        self.__base_retry_delay_strategy = retry_delay_strategy or RetryDelayStrategy.default()
+        self.__base_retry_delay_strategy = (
+            retry_delay_strategy or RetryDelayStrategy.default()
+        )
         self.__retry_delay_reset_threshold = retry_delay_reset_threshold
         self.__current_retry_delay_strategy = self.__base_retry_delay_strategy
         self.__next_retry_delay = 0
@@ -202,11 +204,15 @@ class SSEClient:
 
             # We've hit an error, so ask the ErrorStrategy what to do: raise an exception or yield a Fault.
             self._compute_next_retry_delay()
-            fail_or_continue, self.__current_error_strategy = self.__current_error_strategy.apply(error)
+            fail_or_continue, self.__current_error_strategy = (
+                self.__current_error_strategy.apply(error)
+            )
             if fail_or_continue == ErrorStrategy.FAIL:
                 if error is None:
                     # If error is None, the stream was ended normally by the server. Just stop iterating.
-                    yield Fault(None)  # this is only visible if you're reading from "all"
+                    yield Fault(
+                        None
+                    )  # this is only visible if you're reading from "all"
                     return
                 raise error
             yield Fault(error)
@@ -246,25 +252,34 @@ class SSEClient:
             connection_duration = time.time() - self.__connected_time
             if connection_duration >= self.__retry_delay_reset_threshold:
                 self.__current_retry_delay_strategy = self.__base_retry_delay_strategy
-        self.__next_retry_delay, self.__current_retry_delay_strategy = \
+        self.__next_retry_delay, self.__current_retry_delay_strategy = (
             self.__current_retry_delay_strategy.apply(self.__base_retry_delay)
+        )
 
     def _try_start(self, can_return_fault: bool) -> Optional[Fault]:
         if self.__connection_result is not None:
             return None
         while True:
             if self.__next_retry_delay > 0:
-                delay = self.__next_retry_delay if self.__disconnected_time == 0 else \
-                    self.__next_retry_delay - (time.time() - self.__disconnected_time)
+                delay = (
+                    self.__next_retry_delay
+                    if self.__disconnected_time == 0
+                    else self.__next_retry_delay
+                    - (time.time() - self.__disconnected_time)
+                )
                 if delay > 0:
                     self.__logger.info("Will reconnect after delay of %fs" % delay)
                     time.sleep(delay)
             try:
-                self.__connection_result = self.__connection_client.connect(self.__last_event_id)
+                self.__connection_result = self.__connection_client.connect(
+                    self.__last_event_id
+                )
             except Exception as e:
                 self.__disconnected_time = time.time()
                 self._compute_next_retry_delay()
-                fail_or_continue, self.__current_error_strategy = self.__current_error_strategy.apply(e)
+                fail_or_continue, self.__current_error_strategy = (
+                    self.__current_error_strategy.apply(e)
+                )
                 if fail_or_continue == ErrorStrategy.FAIL:
                     raise e
                 if can_return_fault:

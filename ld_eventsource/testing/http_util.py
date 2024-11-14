@@ -187,7 +187,9 @@ class ChunkedResponse:
                 request.wfile.flush()
                 break
             else:
-                request.wfile.write(('%x\r\n%s\r\n' % (len(chunk), chunk)).encode('UTF-8'))
+                request.wfile.write(
+                    ('%x\r\n%s\r\n' % (len(chunk), chunk)).encode('UTF-8')
+                )
                 request.wfile.flush()
 
     def __enter__(self):

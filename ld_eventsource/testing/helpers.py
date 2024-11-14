@@ -14,9 +14,17 @@ def make_stream() -> ChunkedResponse:
 
 
 def retry_for_status(status: int) -> ErrorStrategy:
-    return ErrorStrategy.from_lambda(lambda error: \
-        (ErrorStrategy.CONTINUE if isinstance(error, HTTPStatusError) and error.status == status \
-            else ErrorStrategy.FAIL, None))
+    return ErrorStrategy.from_lambda(
+        lambda error: (
+            (
+                ErrorStrategy.CONTINUE
+                if isinstance(error, HTTPStatusError) and error.status == status
+                else ErrorStrategy.FAIL
+            ),
+            None,
+        )
+    )
+
 
 def no_delay() -> RetryDelayStrategy:
     return RetryDelayStrategy.from_lambda(lambda _: (0, None))
@@ -44,7 +52,9 @@ class MockConnectionClient(ConnectionClient):
 
 class MockConnectionHandler:
     def apply(self) -> ConnectionResult:
-        raise NotImplementedError("MockConnectionHandler base class cannot be used by itself")
+        raise NotImplementedError(
+            "MockConnectionHandler base class cannot be used by itself"
+        )
 
 
 class RejectConnection(MockConnectionHandler):

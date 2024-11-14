@@ -100,7 +100,9 @@ def test_http_io_error():
 def test_auto_redirect_301():
     with start_server() as server:
         with make_stream() as stream:
-            server.for_path('/', BasicResponse(301, None, {'Location': server.uri + '/real-stream'}))
+            server.for_path(
+                '/', BasicResponse(301, None, {'Location': server.uri + '/real-stream'})
+            )
             server.for_path('/real-stream', stream)
             with ConnectStrategy.http(server.uri).create_client(logger()) as client:
                 client.connect(None)
@@ -111,7 +113,9 @@ def test_auto_redirect_301():
 def test_auto_redirect_307():
     with start_server() as server:
         with make_stream() as stream:
-            server.for_path('/', BasicResponse(307, None, {'Location': server.uri + '/real-stream'}))
+            server.for_path(
+                '/', BasicResponse(307, None, {'Location': server.uri + '/real-stream'})
+            )
             server.for_path('/real-stream', stream)
             with ConnectStrategy.http(server.uri).create_client(logger()) as client:
                 client.connect(None)

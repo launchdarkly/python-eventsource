@@ -10,10 +10,13 @@ from ld_eventsource.testing.helpers import *
 # functionality is tested separately in test_http_connect_strategy.py and
 # test_http_connect_strategy_with_sse_client.py.
 
+
 @pytest.mark.parametrize('explicitly_start', [False, True])
 def test_receives_events(explicitly_start: bool):
     mock = MockConnectStrategy(
-        RespondWithData("event: event1\ndata: data1\n\n:whatever\nevent: event2\ndata: data2\n\n")
+        RespondWithData(
+            "event: event1\ndata: data1\n\n:whatever\nevent: event2\ndata: data2\n\n"
+        )
     )
     with SSEClient(connect=mock) as client:
         if explicitly_start:
@@ -29,10 +32,9 @@ def test_receives_events(explicitly_start: bool):
         assert event2.event == 'event2'
         assert event2.data == 'data2'
 
+
 def test_events_returns_eof_when_stream_ends():
-    mock = MockConnectStrategy(
-        RespondWithData("event: event1\ndata: data1\n\n")
-    )
+    mock = MockConnectStrategy(RespondWithData("event: event1\ndata: data1\n\n"))
     with SSEClient(connect=mock) as client:
         events = client.events
 
@@ -43,9 +45,12 @@ def test_events_returns_eof_when_stream_ends():
         event2 = next(events, "done")
         assert event2 == "done"
 
+
 def test_receives_all():
     mock = MockConnectStrategy(
-        RespondWithData("event: event1\ndata: data1\n\n:whatever\nevent: event2\ndata: data2\n\n")
+        RespondWithData(
+            "event: event1\ndata: data1\n\n:whatever\nevent: event2\ndata: data2\n\n"
+        )
     )
     with SSEClient(connect=mock) as client:
         all = client.all
@@ -67,10 +72,9 @@ def test_receives_all():
         assert item4.event == 'event2'
         assert item4.data == 'data2'
 
+
 def test_all_returns_fault_and_eof_when_stream_ends():
-    mock = MockConnectStrategy(
-        RespondWithData("event: event1\ndata: data1\n\n")
-    )
+    mock = MockConnectStrategy(RespondWithData("event: event1\ndata: data1\n\n"))
     with SSEClient(connect=mock) as client:
         all = client.all
 

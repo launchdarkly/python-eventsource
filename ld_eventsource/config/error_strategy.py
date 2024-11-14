@@ -86,7 +86,9 @@ class ErrorStrategy:
         return _TimeLimitErrorStrategy(max_time, 0)
 
     @staticmethod
-    def from_lambda(fn: Callable[[Optional[Exception]], Tuple[bool, Optional[ErrorStrategy]]]) -> ErrorStrategy:
+    def from_lambda(
+        fn: Callable[[Optional[Exception]], Tuple[bool, Optional[ErrorStrategy]]]
+    ) -> ErrorStrategy:
         """
         Convenience method for creating an ErrorStrategy whose ``apply`` method is equivalent to
         the given lambda.
@@ -98,7 +100,9 @@ class ErrorStrategy:
 
 
 class _LambdaErrorStrategy(ErrorStrategy):
-    def __init__(self, fn: Callable[[Optional[Exception]], Tuple[bool, Optional[ErrorStrategy]]]):
+    def __init__(
+        self, fn: Callable[[Optional[Exception]], Tuple[bool, Optional[ErrorStrategy]]]
+    ):
         self.__fn = fn
 
     def apply(self, exception: Optional[Exception]) -> Tuple[bool, ErrorStrategy]:
@@ -114,7 +118,10 @@ class _MaxAttemptsErrorStrategy(ErrorStrategy):
     def apply(self, exception: Optional[Exception]) -> Tuple[bool, ErrorStrategy]:
         if self.__counter >= self.__max_attempts:
             return (ErrorStrategy.FAIL, self)
-        return (ErrorStrategy.CONTINUE, _MaxAttemptsErrorStrategy(self.__max_attempts, self.__counter + 1))
+        return (
+            ErrorStrategy.CONTINUE,
+            _MaxAttemptsErrorStrategy(self.__max_attempts, self.__counter + 1),
+        )
 
 
 class _TimeLimitErrorStrategy(ErrorStrategy):
@@ -124,7 +131,10 @@ class _TimeLimitErrorStrategy(ErrorStrategy):
 
     def apply(self, exception: Optional[Exception]) -> Tuple[bool, ErrorStrategy]:
         if self.__start_time == 0:
-            return (ErrorStrategy.CONTINUE, _TimeLimitErrorStrategy(self.__max_time, time.time()))
+            return (
+                ErrorStrategy.CONTINUE,
+                _TimeLimitErrorStrategy(self.__max_time, time.time()),
+            )
         if (time.time() - self.__start_time) < self.__max_time:
             return (ErrorStrategy.CONTINUE, self)
         return (ErrorStrategy.FAIL, self)

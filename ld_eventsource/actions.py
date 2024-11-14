@@ -17,11 +17,13 @@ class Event(Action):
     Instances of this class are returned by both :attr:`.SSEClient.events` and
     :attr:`.SSEClient.all`.
     """
-    def __init__(self,
-        event: str='message',
-        data: str='',
-        id: Optional[str]=None,
-        last_event_id: Optional[str]=None
+
+    def __init__(
+        self,
+        event: str = 'message',
+        data: str = '',
+        id: Optional[str] = None,
+        last_event_id: Optional[str] = None,
     ):
         self._event = event
         self._data = data
@@ -59,8 +61,12 @@ class Event(Action):
     def __eq__(self, other):
         if not isinstance(other, Event):
             return False
-        return self._event == other._event and self._data == other._data \
-            and self._id == other._id and self.last_event_id == other.last_event_id
+        return (
+            self._event == other._event
+            and self._data == other._data
+            and self._id == other._id
+            and self.last_event_id == other.last_event_id
+        )
 
     def __repr__(self):
         return "Event(event=\"%s\", data=%s, id=%s, last_event_id=%s)" % (

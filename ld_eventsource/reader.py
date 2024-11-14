@@ -56,8 +56,8 @@ class _SSEReader:
         self,
         lines_source: Iterable[str],
         last_event_id: Optional[str] = None,
-        set_retry: Optional[Callable[[int], None]] = None
-        ):
+        set_retry: Optional[Callable[[int], None]] = None,
+    ):
         self._lines_source = lines_source
         self._last_event_id = last_event_id
         self._set_retry = set_retry
@@ -80,7 +80,7 @@ class _SSEReader:
                         "message" if event_type == "" else event_type,
                         event_data,
                         event_id,
-                        self._last_event_id
+                        self._last_event_id,
                     )
                 event_type = ""
                 event_data = None
@@ -97,11 +97,13 @@ class _SSEReader:
                 name = line[:colon_pos]
                 if colon_pos < (len(line) - 1) and line[colon_pos + 1] == ' ':
                     colon_pos += 1
-                value = line[colon_pos+1:]
+                value = line[colon_pos + 1:]
             if name == 'event':
                 event_type = value
             elif name == 'data':
-                event_data = value if event_data is None else (event_data + "\n" + value)
+                event_data = (
+                    value if event_data is None else (event_data + "\n" + value)
+                )
             elif name == 'id':
                 if value.find("\x00") < 0:
                     event_id = value
