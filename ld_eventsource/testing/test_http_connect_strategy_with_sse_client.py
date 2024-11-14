@@ -5,6 +5,7 @@ from ld_eventsource.testing.http_util import *
 
 # Tests of basic SSEClient behavior using real HTTP requests.
 
+
 def test_sse_client_reads_events():
     with start_server() as server:
         with make_stream() as stream:
@@ -19,6 +20,7 @@ def test_sse_client_reads_events():
                 event2 = next(client.events)
                 assert event2.event == 'b'
                 assert event2.data == 'data2'
+
 
 def test_sse_client_sends_initial_last_event_id():
     with start_server() as server:

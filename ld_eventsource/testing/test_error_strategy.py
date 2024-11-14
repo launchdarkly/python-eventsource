@@ -12,6 +12,7 @@ def test_always_raise():
         assert should_raise is True
         strategy = next_strategy or strategy
 
+
 def test_always_continue():
     strategy = ErrorStrategy.always_continue()
     for i in range(100):

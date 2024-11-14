@@ -8,6 +8,7 @@ class _BufferedLineReader:
     Helper class that encapsulates the logic for reading UTF-8 stream data as a series of text lines,
     each of which can be terminated by \n, \r, or \r\n.
     """
+
     @staticmethod
     def lines_from(chunks):
         """
@@ -49,6 +50,7 @@ class _BufferedLineReader:
             for line in lines:
                 yield line.decode()
 
+
 class _SSEReader:
     def __init__(
         self,
@@ -59,11 +61,11 @@ class _SSEReader:
         self._lines_source = lines_source
         self._last_event_id = last_event_id
         self._set_retry = set_retry
-    
+
     @property
     def last_event_id(self):
         return self._last_event_id
-    
+
     @property
     def events_and_comments(self):
         event_type = ""

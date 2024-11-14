@@ -15,6 +15,7 @@ from ld_eventsource.config import *
 
 http_client = urllib3.PoolManager()
 
+
 def millis_to_seconds(t):
     return None if t is None else t / 1000
 
@@ -27,7 +28,7 @@ class StreamEntity:
         self.closed = False
         self.callback_counter = 0
         self.sse = None
-        
+
         thread = threading.Thread(target=self.run)
         thread.start()
 
@@ -91,7 +92,7 @@ class StreamEntity:
         self.log.info('Test service sent command: %s' % command)
         # currently we support no special commands
         return False
-    
+
     def send_message(self, message):
         global http_client
 

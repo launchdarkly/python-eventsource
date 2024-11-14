@@ -10,8 +10,10 @@ from ld_eventsource.testing.http_util import *
 # ConnectStrategy.http(), using an embedded HTTP server as a target, but without using
 # SSEClient.
 
+
 def logger():
     return logging.getLogger("test")
+
 
 def test_http_request_gets_chunked_data():
     with start_server() as server:
@@ -24,6 +26,7 @@ def test_http_request_gets_chunked_data():
                     stream.push('world')
                     assert next(cxn.stream) == b'world'
 
+
 def test_http_request_default_headers():
     with start_server() as server:
         with make_stream() as stream:
@@ -34,6 +37,7 @@ def test_http_request_default_headers():
                     assert r.headers['Accept'] == 'text/event-stream'
                     assert r.headers['Cache-Control'] == 'no-cache'
                     assert r.headers.get('Last-Event-Id') is None
+
 
 def test_http_request_custom_default_headers():
     with start_server() as server:
@@ -47,6 +51,7 @@ def test_http_request_custom_default_headers():
                     assert r.headers['Cache-Control'] == 'no-cache'
                     assert r.headers['name1'] == 'value1'
 
+
 def test_http_request_last_event_id_header():
     with start_server() as server:
         with make_stream() as stream:
@@ -56,6 +61,7 @@ def test_http_request_last_event_id_header():
                 with client.connect('id123'):
                     r = server.await_request()
                     assert r.headers['Last-Event-Id'] == 'id123'
+
 
 def test_http_status_error():
     with start_server() as server:
@@ -67,9 +73,10 @@ def test_http_status_error():
         except HTTPStatusError as e:
             assert e.status == 400
 
+
 def test_http_content_type_error():
     with start_server() as server:
-        with ChunkedResponse({ 'Content-Type': 'text/plain' }) as stream:
+        with ChunkedResponse({'Content-Type': 'text/plain'}) as stream:
             server.for_path('/', stream)
             try:
                 with ConnectStrategy.http(server.uri).create_client(logger()) as client:
@@ -78,15 +85,17 @@ def test_http_content_type_error():
             except HTTPContentTypeError as e:
                 assert e.content_type == "text/plain"
 
+
 def test_http_io_error():
     with start_server() as server:
-            server.for_path('/', CauseNetworkError())
-            try:
-                with ConnectStrategy.http(server.uri).create_client(logger()) as client:
-                    client.connect(None)
-                raise Exception("expected exception, did not get one")
-            except ProtocolError as e:
-                pass
+        server.for_path('/', CauseNetworkError())
+        try:
+            with ConnectStrategy.http(server.uri).create_client(logger()) as client:
+                client.connect(None)
+            raise Exception("expected exception, did not get one")
+        except ProtocolError as e:
+            pass
+
 
 def test_auto_redirect_301():
     with start_server() as server:
@@ -98,6 +107,7 @@ def test_auto_redirect_301():
         server.await_request()
         server.await_request()
 
+
 def test_auto_redirect_307():
     with start_server() as server:
         with make_stream() as stream:
@@ -107,6 +117,7 @@ def test_auto_redirect_307():
                 client.connect(None)
         server.await_request()
         server.await_request()
+
 
 def test_sse_client_with_http_connect_strategy():
     # Just a basic smoke test to prove that SSEClient interacts with the ConnectStrategy correctly.

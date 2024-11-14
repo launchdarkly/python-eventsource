@@ -6,6 +6,7 @@ class Action:
     """
     Base class for objects that can be returned by :attr:`.SSEClient.all`.
     """
+
     pass
 
 
@@ -66,19 +67,19 @@ class Event(Action):
             self._event,
             json.dumps(self._data),
             "None" if self._id is None else json.dumps(self._id),
-            "None" if self._last_event_id is None else json.dumps(self._last_event_id)
+            "None" if self._last_event_id is None else json.dumps(self._last_event_id),
         )
 
 
 class Comment(Action):
     """
     A comment received by :class:`.SSEClient`.
-    
+
     Comment lines (any line beginning with a colon) have no significance in the SSE specification
     and can be ignored, but if you want to see them, use :attr:`.SSEClient.all`. They will never
     be returned by :attr:`.SSEClient.events`.
     """
-    
+
     def __init__(self, comment: str):
         self._comment = comment
 
@@ -104,6 +105,7 @@ class Start(Action):
     A ``Start`` is returned for the first successful connection. If the client reconnects
     after a failure, there will be a :class:`.Fault` followed by a ``Start``.
     """
+
     pass
 
 
@@ -121,7 +123,7 @@ class Fault(Action):
 
     def __init__(self, error: Optional[Exception]):
         self.__error = error
-    
+
     @property
     def error(self) -> Optional[Exception]:
         """

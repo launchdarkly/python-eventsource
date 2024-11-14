@@ -15,7 +15,7 @@ class SSEClient:
     This is a synchronous implementation which blocks the caller's thread when reading events or
     reconnecting. It can be run on a worker thread. The expected usage is to create an ``SSEClient``
     instance, then read from it using the iterator properties :attr:`events` or :attr:`all`.
-    
+
     By default, ``SSEClient`` uses ``urllib3`` to make HTTP requests to an SSE endpoint. You can
     customize this behavior using :class:`.ConnectStrategy`.
 
@@ -25,7 +25,7 @@ class SSEClient:
     dropped or cannot be made; but if a connection is made and returns an invalid response
     (non-2xx status, 204 status, or invalid content type), it will not retry. This behavior can
     be customized with ``error_strategy``. The client will automatically follow 3xx redirects.
-    
+
     For any non-retryable error, if this is the first connection attempt then the constructor
     will throw an exception (such as :class:`.HTTPStatusError`). Or, if a
     successful connection was made so the constructor has already returned, but a
@@ -89,7 +89,7 @@ class SSEClient:
             connect = ConnectStrategy.http(connect)
         elif not isinstance(connect, ConnectStrategy):
             raise TypeError("request must be either a string or ConnectStrategy")
-        
+
         self.__base_retry_delay = initial_retry_delay
         self.__base_retry_delay_strategy = retry_delay_strategy or RetryDelayStrategy.default()
         self.__retry_delay_reset_threshold = retry_delay_reset_threshold
@@ -98,7 +98,7 @@ class SSEClient:
 
         self.__base_error_strategy = error_strategy or ErrorStrategy.always_fail()
         self.__current_error_strategy = self.__base_error_strategy
-        
+
         self.__last_event_id = last_event_id
 
         if logger is None:
@@ -106,7 +106,7 @@ class SSEClient:
             logger.addHandler(logging.NullHandler())
             logger.propagate = False
         self.__logger = logger
-      
+
         self.__connection_client = connect.create_client(logger)
         self.__connection_result: Optional[ConnectionResult] = None
         self.__connected_time: float = 0
@@ -142,7 +142,7 @@ class SSEClient:
         """
         self.__closed = True
         self.interrupt()
-    
+
     def interrupt(self):
         """
         Stops the stream connection if it is currently active.
@@ -162,7 +162,7 @@ class SSEClient:
     def all(self) -> Iterable[Action]:
         """
         An iterable series of notifications from the stream.
-        
+
         Each of these can be any subclass of :class:`.Action`: :class:`.Event`, :class:`.Comment`,
         :class:`.Start`, or :class:`.Fault`.
 
@@ -179,7 +179,7 @@ class SSEClient:
                 fault = self._try_start(True)
                 # return either a Start action or a Fault action
                 yield Start() if fault is None else fault
-            
+
             lines = _BufferedLineReader.lines_from(self.__connection_result.stream)
             reader = _SSEReader(lines, self.__last_event_id, None)
             error: Optional[Exception] = None
@@ -232,7 +232,7 @@ class SSEClient:
         """
         The retry delay that will be used for the next reconnection, in seconds, if the stream
         has failed or ended.
-        
+
         This is initially zero, because SSEClient does not compute a retry delay until there is
         a failure. If you have just received an exception or a :class:`.Fault`, or if you were
         iterating through events and the events ran out because the stream closed, the value
@@ -240,7 +240,7 @@ class SSEClient:
         is computed by applying the configured :class:`.RetryDelayStrategy` to the base retry delay.
         """
         return self.__next_retry_delay
-    
+
     def _compute_next_retry_delay(self):
         if self.__retry_delay_reset_threshold > 0 and self.__connected_time != 0:
             connection_duration = time.time() - self.__connected_time
@@ -287,7 +287,7 @@ class SSEClient:
         depends on the server; it may ignore this value.
         """
         return self.__last_event_id
-    
+
     def __enter__(self):
         return self
 

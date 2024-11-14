@@ -120,6 +120,7 @@ class ConnectionResult:
 # _HttpConnectStrategy and _HttpConnectionClient are defined here rather than in http.py to avoid
 # a circular module reference.
 
+
 class _HttpConnectStrategy(ConnectStrategy):
     def __init__(self, params: _HttpConnectParams):
         self.__params = params

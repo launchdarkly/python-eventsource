@@ -26,15 +26,15 @@ class _HttpConnectParams:
     @property
     def url(self) -> str:
         return self.__url
-    
+
     @property
     def headers(self) -> Optional[dict]:
         return self.__headers
-    
+
     @property
     def pool(self) -> Optional[PoolManager]:
         return self.__pool
-    
+
     @property
     def urllib3_request_options(self) -> Optional[dict]:
         return self.__urllib3_request_options
@@ -46,10 +46,10 @@ class _HttpClientImpl:
         self.__pool = params.pool or PoolManager()
         self.__should_close_pool = params.pool is not None
         self.__logger = logger
-    
+
     def connect(self, last_event_id: Optional[str]) -> Tuple[Iterator[bytes], Callable]:
         self.__logger.info("Connecting to stream at %s" % self.__params.url)
-        
+
         headers = self.__params.headers.copy() if self.__params.headers else {}
         headers['Cache-Control'] = 'no-cache'
         headers['Accept'] = 'text/event-stream'

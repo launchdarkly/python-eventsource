@@ -120,6 +120,7 @@ class _LambdaRetryDelayStrategy(RetryDelayStrategy):
         delay, maybe_next = self.__fn(base_delay)
         return (delay, maybe_next or self)
 
+
 class _ReusableRandom:
     def __init__(self, seed: float):
         self.__seed = seed
