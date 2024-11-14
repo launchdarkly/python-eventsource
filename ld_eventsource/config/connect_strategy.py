@@ -1,6 +1,8 @@
 from __future__ import annotations
+
 from logging import Logger
 from typing import Callable, Iterator, Optional, Union
+
 from urllib3 import PoolManager
 
 from ld_eventsource.http import _HttpClientImpl, _HttpConnectParams

@@ -1,6 +1,7 @@
 from __future__ import annotations
-from random import Random
+
 import time
+from random import Random
 from typing import Callable, Optional, Tuple
 
 

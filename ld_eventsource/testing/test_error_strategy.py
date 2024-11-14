@@ -1,7 +1,6 @@
-from ld_eventsource.config import *
-
 import time
 
+from ld_eventsource.config import *
 
 err = Exception("sorry")
 

@@ -1,10 +1,9 @@
+import pytest
+
 from ld_eventsource import *
 from ld_eventsource.actions import *
 from ld_eventsource.config import *
-
 from ld_eventsource.testing.helpers import *
-
-import pytest
 
 # Tests for SSEClient's basic properties and parsing behavior. These tests do not use real HTTP
 # requests; instead, they use a ConnectStrategy that provides a preconfigured input stream. HTTP

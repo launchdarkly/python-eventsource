@@ -1,6 +1,5 @@
 from ld_eventsource import *
 from ld_eventsource.config import *
-
 from ld_eventsource.testing.helpers import *
 from ld_eventsource.testing.http_util import *
 

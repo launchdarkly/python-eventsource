@@ -1,10 +1,10 @@
-from ld_eventsource.config.connect_strategy import *
+import logging
 
+from urllib3.exceptions import ProtocolError
+
+from ld_eventsource.config.connect_strategy import *
 from ld_eventsource.testing.helpers import *
 from ld_eventsource.testing.http_util import *
-
-import logging
-from urllib3.exceptions import ProtocolError
 
 # Tests of the basic client/request configuration methods and HTTP functionality in
 # ConnectStrategy.http(), using an embedded HTTP server as a target, but without using

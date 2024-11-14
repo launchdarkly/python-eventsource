@@ -1,6 +1,6 @@
-from ld_eventsource.actions import Comment, Event
-
 from typing import Callable, Iterable, Optional
+
+from ld_eventsource.actions import Comment, Event
 
 
 class _BufferedLineReader:

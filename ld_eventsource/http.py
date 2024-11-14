@@ -1,5 +1,6 @@
 from logging import Logger
 from typing import Callable, Iterator, Optional, Tuple
+
 from urllib3 import PoolManager
 from urllib3.exceptions import MaxRetryError
 from urllib3.util import Retry

@@ -4,6 +4,7 @@ import os
 import sys
 import threading
 import traceback
+
 import urllib3
 
 # Import ld_eventsource from parent directory
@@ -11,7 +12,6 @@ sys.path.insert(1, os.path.join(sys.path[0], '..'))
 from ld_eventsource import *
 from ld_eventsource.actions import *
 from ld_eventsource.config import *
-
 
 http_client = urllib3.PoolManager()
 

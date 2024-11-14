@@ -1,11 +1,11 @@
-from ld_eventsource.actions import *
-from ld_eventsource.errors import *
-from ld_eventsource.config import *
-from ld_eventsource.reader import _BufferedLineReader, _SSEReader
-
 import logging
 import time
 from typing import Iterable, Optional, Union
+
+from ld_eventsource.actions import *
+from ld_eventsource.config import *
+from ld_eventsource.errors import *
+from ld_eventsource.reader import _BufferedLineReader, _SSEReader
 
 
 class SSEClient:

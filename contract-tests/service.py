@@ -1,13 +1,13 @@
-from stream_entity import StreamEntity
-
 import json
 import logging
 import os
 import sys
+from logging.config import dictConfig
+
 import urllib3
 from flask import Flask, request
 from flask.logging import default_handler
-from logging.config import dictConfig
+from stream_entity import StreamEntity
 
 default_port = 8000
 

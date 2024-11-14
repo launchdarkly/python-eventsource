@@ -1,7 +1,6 @@
 from ld_eventsource import *
 from ld_eventsource.actions import *
 from ld_eventsource.config import *
-
 from ld_eventsource.testing.helpers import *
 
 
