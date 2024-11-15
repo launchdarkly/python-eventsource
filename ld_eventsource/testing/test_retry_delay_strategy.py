@@ -1,11 +1,13 @@
-from ld_eventsource.config import *
-
 from typing import Optional, Tuple
+
+from ld_eventsource.config import *
 
 
 def test_backoff_with_no_jitter_and_no_max():
     base = 4
-    strategy = RetryDelayStrategy.default(max_delay=None, backoff_multiplier=2, jitter_multiplier=None)
+    strategy = RetryDelayStrategy.default(
+        max_delay=None, backoff_multiplier=2, jitter_multiplier=None
+    )
 
     delay, next1 = strategy.apply(base)
     assert delay == base
@@ -23,7 +25,9 @@ def test_backoff_with_no_jitter_and_no_max():
 def test_backoff_with_no_jitter_and_max():
     base = 4
     max = base * 4 + 3
-    strategy = RetryDelayStrategy.default(max_delay=max, backoff_multiplier=2, jitter_multiplier=None)
+    strategy = RetryDelayStrategy.default(
+        max_delay=max, backoff_multiplier=2, jitter_multiplier=None
+    )
 
     delay, next1 = strategy.apply(base)
     assert delay == base
@@ -40,7 +44,9 @@ def test_backoff_with_no_jitter_and_max():
 
 def test_no_backoff_and_no_jitter():
     base = 4
-    strategy = RetryDelayStrategy.default(max_delay=None, backoff_multiplier=1, jitter_multiplier=None)
+    strategy = RetryDelayStrategy.default(
+        max_delay=None, backoff_multiplier=1, jitter_multiplier=None
+    )
 
     delay, next1 = strategy.apply(base)
     assert delay == base
@@ -57,7 +63,9 @@ def test_backoff_with_jitter():
     backoff = 2
     max = base * backoff * backoff + 3
     jitter = 0.25
-    strategy = RetryDelayStrategy.default(max_delay=max, backoff_multiplier=backoff, jitter_multiplier=jitter)
+    strategy = RetryDelayStrategy.default(
+        max_delay=max, backoff_multiplier=backoff, jitter_multiplier=jitter
+    )
 
     _, next1 = verify_jitter(strategy, base, base, jitter)
     _, next2 = verify_jitter(next1, base, base * backoff, jitter)
@@ -73,8 +81,9 @@ def zero_base_delay_always_produces_zero():
         r = r
 
 
-def verify_jitter(strategy: RetryDelayStrategy, base: float, base_with_backoff: float, jitter: float) \
-    -> Tuple[float, Optional[RetryDelayStrategy]]:
+def verify_jitter(
+    strategy: RetryDelayStrategy, base: float, base_with_backoff: float, jitter: float
+) -> Tuple[float, Optional[RetryDelayStrategy]]:
     # We can't 100% prove that it's using the expected jitter ratio, since the result
     # is pseudo-random, but we can at least prove that repeated computations don't
     # fall outside the expected range and aren't all equal.

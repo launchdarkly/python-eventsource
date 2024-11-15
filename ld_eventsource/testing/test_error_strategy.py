@@ -1,7 +1,6 @@
-from ld_eventsource.config import *
-
 import time
 
+from ld_eventsource.config import *
 
 err = Exception("sorry")
 
@@ -12,6 +11,7 @@ def test_always_raise():
         should_raise, next_strategy = strategy.apply(err)
         assert should_raise is True
         strategy = next_strategy or strategy
+
 
 def test_always_continue():
     strategy = ErrorStrategy.always_continue()

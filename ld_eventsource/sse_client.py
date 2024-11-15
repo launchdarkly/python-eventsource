@@ -1,11 +1,11 @@
-from ld_eventsource.actions import *
-from ld_eventsource.errors import *
-from ld_eventsource.config import *
-from ld_eventsource.reader import _BufferedLineReader, _SSEReader
-
 import logging
 import time
 from typing import Iterable, Optional, Union
+
+from ld_eventsource.actions import *
+from ld_eventsource.config import *
+from ld_eventsource.errors import *
+from ld_eventsource.reader import _BufferedLineReader, _SSEReader
 
 
 class SSEClient:
@@ -15,7 +15,7 @@ class SSEClient:
     This is a synchronous implementation which blocks the caller's thread when reading events or
     reconnecting. It can be run on a worker thread. The expected usage is to create an ``SSEClient``
     instance, then read from it using the iterator properties :attr:`events` or :attr:`all`.
-    
+
     By default, ``SSEClient`` uses ``urllib3`` to make HTTP requests to an SSE endpoint. You can
     customize this behavior using :class:`.ConnectStrategy`.
 
@@ -25,7 +25,7 @@ class SSEClient:
     dropped or cannot be made; but if a connection is made and returns an invalid response
     (non-2xx status, 204 status, or invalid content type), it will not retry. This behavior can
     be customized with ``error_strategy``. The client will automatically follow 3xx redirects.
-    
+
     For any non-retryable error, if this is the first connection attempt then the constructor
     will throw an exception (such as :class:`.HTTPStatusError`). Or, if a
     successful connection was made so the constructor has already returned, but a
@@ -42,14 +42,14 @@ class SSEClient:
     """
 
     def __init__(
-        self, 
+        self,
         connect: Union[str, ConnectStrategy],
-        initial_retry_delay: float=1,
-        retry_delay_strategy: Optional[RetryDelayStrategy]=None,
-        retry_delay_reset_threshold: float=60,
-        error_strategy: Optional[ErrorStrategy]=None,
-        last_event_id: Optional[str]=None,
-        logger: Optional[logging.Logger]=None
+        initial_retry_delay: float = 1,
+        retry_delay_strategy: Optional[RetryDelayStrategy] = None,
+        retry_delay_reset_threshold: float = 60,
+        error_strategy: Optional[ErrorStrategy] = None,
+        last_event_id: Optional[str] = None,
+        logger: Optional[logging.Logger] = None,
     ):
         """
         Creates a client instance.
@@ -89,16 +89,18 @@ class SSEClient:
             connect = ConnectStrategy.http(connect)
         elif not isinstance(connect, ConnectStrategy):
             raise TypeError("request must be either a string or ConnectStrategy")
-        
+
         self.__base_retry_delay = initial_retry_delay
-        self.__base_retry_delay_strategy = retry_delay_strategy or RetryDelayStrategy.default()
+        self.__base_retry_delay_strategy = (
+            retry_delay_strategy or RetryDelayStrategy.default()
+        )
         self.__retry_delay_reset_threshold = retry_delay_reset_threshold
         self.__current_retry_delay_strategy = self.__base_retry_delay_strategy
         self.__next_retry_delay = 0
 
         self.__base_error_strategy = error_strategy or ErrorStrategy.always_fail()
         self.__current_error_strategy = self.__base_error_strategy
-        
+
         self.__last_event_id = last_event_id
 
         if logger is None:
@@ -106,7 +108,7 @@ class SSEClient:
             logger.addHandler(logging.NullHandler())
             logger.propagate = False
         self.__logger = logger
-      
+
         self.__connection_client = connect.create_client(logger)
         self.__connection_result: Optional[ConnectionResult] = None
         self.__connected_time: float = 0
@@ -142,7 +144,7 @@ class SSEClient:
         """
         self.__closed = True
         self.interrupt()
-    
+
     def interrupt(self):
         """
         Stops the stream connection if it is currently active.
@@ -162,7 +164,7 @@ class SSEClient:
     def all(self) -> Iterable[Action]:
         """
         An iterable series of notifications from the stream.
-        
+
         Each of these can be any subclass of :class:`.Action`: :class:`.Event`, :class:`.Comment`,
         :class:`.Start`, or :class:`.Fault`.
 
@@ -179,7 +181,7 @@ class SSEClient:
                 fault = self._try_start(True)
                 # return either a Start action or a Fault action
                 yield Start() if fault is None else fault
-            
+
             lines = _BufferedLineReader.lines_from(self.__connection_result.stream)
             reader = _SSEReader(lines, self.__last_event_id, None)
             error: Optional[Exception] = None
@@ -202,11 +204,15 @@ class SSEClient:
 
             # We've hit an error, so ask the ErrorStrategy what to do: raise an exception or yield a Fault.
             self._compute_next_retry_delay()
-            fail_or_continue, self.__current_error_strategy = self.__current_error_strategy.apply(error)
+            fail_or_continue, self.__current_error_strategy = (
+                self.__current_error_strategy.apply(error)
+            )
             if fail_or_continue == ErrorStrategy.FAIL:
                 if error is None:
                     # If error is None, the stream was ended normally by the server. Just stop iterating.
-                    yield Fault(None)  # this is only visible if you're reading from "all"
+                    yield Fault(
+                        None
+                    )  # this is only visible if you're reading from "all"
                     return
                 raise error
             yield Fault(error)
@@ -232,7 +238,7 @@ class SSEClient:
         """
         The retry delay that will be used for the next reconnection, in seconds, if the stream
         has failed or ended.
-        
+
         This is initially zero, because SSEClient does not compute a retry delay until there is
         a failure. If you have just received an exception or a :class:`.Fault`, or if you were
         iterating through events and the events ran out because the stream closed, the value
@@ -240,31 +246,40 @@ class SSEClient:
         is computed by applying the configured :class:`.RetryDelayStrategy` to the base retry delay.
         """
         return self.__next_retry_delay
-    
+
     def _compute_next_retry_delay(self):
         if self.__retry_delay_reset_threshold > 0 and self.__connected_time != 0:
             connection_duration = time.time() - self.__connected_time
             if connection_duration >= self.__retry_delay_reset_threshold:
                 self.__current_retry_delay_strategy = self.__base_retry_delay_strategy
-        self.__next_retry_delay, self.__current_retry_delay_strategy = \
+        self.__next_retry_delay, self.__current_retry_delay_strategy = (
             self.__current_retry_delay_strategy.apply(self.__base_retry_delay)
+        )
 
     def _try_start(self, can_return_fault: bool) -> Optional[Fault]:
         if self.__connection_result is not None:
             return None
         while True:
             if self.__next_retry_delay > 0:
-                delay = self.__next_retry_delay if self.__disconnected_time == 0 else \
-                    self.__next_retry_delay - (time.time() - self.__disconnected_time)
+                delay = (
+                    self.__next_retry_delay
+                    if self.__disconnected_time == 0
+                    else self.__next_retry_delay
+                    - (time.time() - self.__disconnected_time)
+                )
                 if delay > 0:
                     self.__logger.info("Will reconnect after delay of %fs" % delay)
                     time.sleep(delay)
             try:
-                self.__connection_result = self.__connection_client.connect(self.__last_event_id)
+                self.__connection_result = self.__connection_client.connect(
+                    self.__last_event_id
+                )
             except Exception as e:
                 self.__disconnected_time = time.time()
                 self._compute_next_retry_delay()
-                fail_or_continue, self.__current_error_strategy = self.__current_error_strategy.apply(e)
+                fail_or_continue, self.__current_error_strategy = (
+                    self.__current_error_strategy.apply(e)
+                )
                 if fail_or_continue == ErrorStrategy.FAIL:
                     raise e
                 if can_return_fault:
@@ -287,7 +302,7 @@ class SSEClient:
         depends on the server; it may ignore this value.
         """
         return self.__last_event_id
-    
+
     def __enter__(self):
         return self
 

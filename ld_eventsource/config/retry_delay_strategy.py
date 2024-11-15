@@ -1,6 +1,7 @@
 from __future__ import annotations
-from random import Random
+
 import time
+from random import Random
 from typing import Callable, Optional, Tuple
 
 
@@ -33,7 +34,7 @@ class RetryDelayStrategy:
     def default(
         max_delay: Optional[float] = None,
         backoff_multiplier: float = 2,
-        jitter_multiplier: Optional[float] = None
+        jitter_multiplier: Optional[float] = None,
     ) -> RetryDelayStrategy:
         """
         Provides the default retry delay behavior for :class:`.SSEClient`, which includes
@@ -58,11 +59,18 @@ class RetryDelayStrategy:
         :param jitter_multiplier: a fraction from 0.0 to 1.0 for how much of the delay may be
             pseudo-randomly subtracted
         """
-        return _DefaultRetryDelayStrategy(max_delay or 0, backoff_multiplier, jitter_multiplier or 0,
-            0, _ReusableRandom(time.time()))
+        return _DefaultRetryDelayStrategy(
+            max_delay or 0,
+            backoff_multiplier,
+            jitter_multiplier or 0,
+            0,
+            _ReusableRandom(time.time()),
+        )
 
     @staticmethod
-    def from_lambda(fn: Callable[[float], Tuple[float, Optional[RetryDelayStrategy]]]) -> RetryDelayStrategy:
+    def from_lambda(
+        fn: Callable[[float], Tuple[float, Optional[RetryDelayStrategy]]]
+    ) -> RetryDelayStrategy:
         """
         Convenience method for creating a RetryDelayStrategy whose ``apply`` method is equivalent to
         the given lambda.
@@ -80,7 +88,7 @@ class _DefaultRetryDelayStrategy(RetryDelayStrategy):
         backoff_multiplier: float,
         jitter_multiplier: float,
         last_base_delay: float,
-        random: _ReusableRandom
+        random: _ReusableRandom,
     ):
         self.__max_delay = max_delay
         self.__backoff_multiplier = backoff_multiplier
@@ -89,8 +97,11 @@ class _DefaultRetryDelayStrategy(RetryDelayStrategy):
         self.__random = random
 
     def apply(self, base_delay: float) -> Tuple[float, RetryDelayStrategy]:
-        next_base_delay = base_delay if self.__last_base_delay == 0 else \
-            self.__last_base_delay * self.__backoff_multiplier
+        next_base_delay = (
+            base_delay
+            if self.__last_base_delay == 0
+            else self.__last_base_delay * self.__backoff_multiplier
+        )
         if self.__max_delay > 0 and next_base_delay > self.__max_delay:
             next_base_delay = self.__max_delay
         adjusted_delay = next_base_delay
@@ -100,24 +111,30 @@ class _DefaultRetryDelayStrategy(RetryDelayStrategy):
             # To avoid having this object contain mutable state, we create a new Random with the same
             # state as our previous Random before using it.
             random = random.clone()
-            adjusted_delay -= (random.random() * self.__jitter_multiplier * adjusted_delay)
+            adjusted_delay -= (
+                random.random() * self.__jitter_multiplier * adjusted_delay
+            )
 
         next_strategy = _DefaultRetryDelayStrategy(
             self.__max_delay,
             self.__backoff_multiplier,
             self.__jitter_multiplier,
             next_base_delay,
-            random
+            random,
         )
         return (adjusted_delay, next_strategy)
 
+
 class _LambdaRetryDelayStrategy(RetryDelayStrategy):
-    def __init__(self, fn: Callable[[float], Tuple[float, Optional[RetryDelayStrategy]]]):
+    def __init__(
+        self, fn: Callable[[float], Tuple[float, Optional[RetryDelayStrategy]]]
+    ):
         self.__fn = fn
 
     def apply(self, base_delay: float) -> Tuple[float, RetryDelayStrategy]:
         delay, maybe_next = self.__fn(base_delay)
         return (delay, maybe_next or self)
+
 
 class _ReusableRandom:
     def __init__(self, seed: float):

@@ -31,7 +31,9 @@ test: install
 .PHONY: lint
 lint: #! Run type analysis and linting checks
 lint: install
-	poetry run mypy ld_eventsource
+	@poetry run mypy ld_eventsource
+	@poetry run isort --check --atomic ld_eventsource contract-tests
+	@poetry run pycodestyle ld_eventsource contract-tests
 
 #
 # Documentation generation

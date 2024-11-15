@@ -1,13 +1,12 @@
-from stream_entity import StreamEntity
-
 import json
 import logging
 import os
 import sys
-import urllib3
+from logging.config import dictConfig
+
 from flask import Flask, request
 from flask.logging import default_handler
-from logging.config import dictConfig
+from stream_entity import StreamEntity
 
 default_port = 8000
 
@@ -30,7 +29,7 @@ dictConfig({
         'handlers': ['console']
     },
     'loggers': {
-        'werkzeug': { 'level': 'ERROR' } # disable irrelevant Flask app logging
+        'werkzeug': {'level': 'ERROR'}  # disable irrelevant Flask app logging
     }
 })
 
@@ -54,10 +53,12 @@ def status():
     }
     return (json.dumps(body), 200, {'Content-type': 'application/json'})
 
+
 @app.route('/', methods=['DELETE'])
 def delete_stop_service():
     global_log.info("Test service has told us to exit")
     os._exit(0)
+
 
 @app.route('/', methods=['POST'])
 def post_create_stream():
@@ -74,6 +75,7 @@ def post_create_stream():
 
     return ('', 201, {'Location': resource_url})
 
+
 @app.route('/streams/<id>', methods=['POST'])
 def post_stream_command(id):
     global streams
@@ -87,6 +89,7 @@ def post_stream_command(id):
         return ('', 400)
     return ('', 204)
 
+
 @app.route('/streams/<id>', methods=['DELETE'])
 def delete_stream(id):
     global streams
@@ -96,6 +99,7 @@ def delete_stream(id):
         return ('', 404)
     stream.close()
     return ('', 204)
+
 
 if __name__ == "__main__":
     port = default_port
