@@ -48,8 +48,3 @@ jobs:
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           password: ${{env.PYPI_AUTH_TOKEN}}
-
-      - uses: ./.github/actions/publish-docs
-        if: ${{ steps.release.outputs.releases_created == 'true' }}
-        with:
-          token: ${{secrets.GITHUB_TOKEN}}
