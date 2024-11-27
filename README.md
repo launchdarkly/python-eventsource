@@ -2,7 +2,7 @@
 
 [![Run CI](https://github.com/launchdarkly/python-eventsource/actions/workflows/ci.yml/badge.svg)](https://github.com/launchdarkly/python-eventsource/actions/workflows/ci.yml)
 [![PyPI](https://img.shields.io/pypi/v/launchdarkly-eventsource.svg?maxAge=2592000)](https://pypi.python.org/pypi/launchdarkly-eventsource)
-[![Documentation](https://img.shields.io/static/v1?label=GitHub+Pages&message=API+reference&color=00add8)](https://launchdarkly.github.io/python-eventsource)
+[![readthedocs](https://readthedocs.org/projects/launchdarkly-sse-client-library/badge/)](https://launchdarkly-sse-client-library.readthedocs.io/en/latest/)
 
 ## Overview
 
