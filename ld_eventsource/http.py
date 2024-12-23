@@ -87,7 +87,15 @@ class _HttpClientImpl:
             raise HTTPContentTypeError(content_type or '')
 
         stream = resp.stream(_CHUNK_SIZE)
-        return stream, resp.release_conn
+
+        def close():
+            try:
+                resp.shutdown()
+            except AttributeError:
+                pass
+            resp.release_conn()
+
+        return stream, close
 
     def close(self):
         if self.__should_close_pool:
