@@ -2,6 +2,7 @@ from ld_eventsource import *
 from ld_eventsource.actions import *
 from ld_eventsource.config import *
 from ld_eventsource.testing.helpers import *
+from time import sleep
 
 
 def test_retry_during_initial_connect_succeeds():
@@ -98,6 +99,57 @@ def test_all_iterator_continues_after_retry():
         item6 = next(all)
         assert isinstance(item6, Fault)
         assert item6.error is None
+        assert client.next_retry_delay == initial_delay * 2
+
+
+def test_retry_delay_gets_reset_after_threshold():
+    initial_delay = 0.005
+    retry_delay_reset_threshold = 0.1
+    mock = MockConnectStrategy(
+        RespondWithData("data: data1\n\n"),
+        RejectConnection(HTTPStatusError(503)),
+    )
+    with SSEClient(
+        connect=mock,
+        error_strategy=ErrorStrategy.always_continue(),
+        initial_retry_delay=initial_delay,
+        retry_delay_reset_threshold=retry_delay_reset_threshold,
+        retry_delay_strategy=RetryDelayStrategy.default(jitter_multiplier=None),
+    ) as client:
+        assert client._retry_reset_baseline == 0
+        all = client.all
+
+        # Establish a successful connection
+        item1 = next(all)
+        assert isinstance(item1, Start)
+        assert client._retry_reset_baseline != 0
+
+        item2 = next(all)
+        assert isinstance(item2, Event)
+        assert item2.data == 'data1'
+
+        # Stream is dropped and then fails to re-connect, resulting in backoff.
+        item3 = next(all)
+        assert isinstance(item3, Fault)
+        assert client.next_retry_delay == initial_delay
+
+        item4 = next(all)
+        assert isinstance(item4, Fault)
+        assert client.next_retry_delay == initial_delay * 2
+
+        # Sleeping the threshold should reset the retry thresholds
+        sleep(retry_delay_reset_threshold)
+
+        # Which we see it does here
+        item5 = next(all)
+        assert isinstance(item5, Fault)
+        assert client.next_retry_delay == initial_delay
+
+        # And if we don't sleep long enough, it doesn't get reset.
+        sleep(retry_delay_reset_threshold / 2)
+
+        item6 = next(all)
+        assert isinstance(item6, Fault)
         assert client.next_retry_delay == initial_delay * 2
 
 

@@ -111,7 +111,7 @@ class SSEClient:
 
         self.__connection_client = connect.create_client(logger)
         self.__connection_result: Optional[ConnectionResult] = None
-        self.__retry_reset_baseline: float = 0
+        self._retry_reset_baseline: float = 0
         self.__disconnected_time: float = 0
 
         self.__closed = False
@@ -253,12 +253,12 @@ class SSEClient:
         # In those situations, we don't want to reset the retry delay strategy;
         # it should continue to double until the retry maximum, and then hold
         # steady (- jitter).
-        if self.__retry_delay_reset_threshold > 0 and self.__retry_reset_baseline != 0:
+        if self.__retry_delay_reset_threshold > 0 and self._retry_reset_baseline != 0:
             now = time.time()
-            connection_duration = now - self.__retry_reset_baseline
+            connection_duration = now - self._retry_reset_baseline
             if connection_duration >= self.__retry_delay_reset_threshold:
                 self.__current_retry_delay_strategy = self.__base_retry_delay_strategy
-                self.__retry_reset_baseline = now
+                self._retry_reset_baseline = now
         self.__next_retry_delay, self.__current_retry_delay_strategy = (
             self.__current_retry_delay_strategy.apply(self.__base_retry_delay)
         )
@@ -294,7 +294,7 @@ class SSEClient:
                 # If can_return_fault is false, it means the caller explicitly called start(), in
                 # which case there's no way to return a Fault so we just keep retrying transparently.
                 continue
-            self.__retry_reset_baseline = time.time()
+            self._retry_reset_baseline = time.time()
             self.__current_error_strategy = self.__base_error_strategy
             self.__interrupted = False
             return None
