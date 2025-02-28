@@ -1,8 +1,9 @@
+from time import sleep
+
 from ld_eventsource import *
 from ld_eventsource.actions import *
 from ld_eventsource.config import *
 from ld_eventsource.testing.helpers import *
-from time import sleep
 
 
 def test_retry_during_initial_connect_succeeds():
