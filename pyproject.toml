@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "launchdarkly-eventsource"
-version = "1.2.1"
+version = "1.2.2"
 description = "LaunchDarkly SSE Client"
 authors = ["LaunchDarkly <dev@launchdarkly.com>"]
 license = "Apache-2.0"
