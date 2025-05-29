@@ -2,6 +2,13 @@
 
 All notable changes to the LaunchDarkly SSE Client for Python will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org).
 
+## [1.2.3](https://github.com/launchdarkly/python-eventsource/compare/1.2.2...1.2.3) (2025-05-29)
+
+
+### Bug Fixes
+
+* Replace deprecated ssl.wrap_socket usage ([#42](https://github.com/launchdarkly/python-eventsource/issues/42)) ([34510b6](https://github.com/launchdarkly/python-eventsource/commit/34510b697d05fd037cb00a49ad9c5da1d62bfb45))
+
 ## [1.2.2](https://github.com/launchdarkly/python-eventsource/compare/1.2.1...1.2.2) (2025-02-28)
 
 
