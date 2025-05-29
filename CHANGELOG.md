@@ -2,6 +2,13 @@
 
 All notable changes to the LaunchDarkly SSE Client for Python will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org).
 
+## [1.2.4](https://github.com/launchdarkly/python-eventsource/compare/1.2.3...1.2.4) (2025-05-29)
+
+
+### Bug Fixes
+
+* Catch all response.shutdown exceptions ([#45](https://github.com/launchdarkly/python-eventsource/issues/45)) ([cd7262e](https://github.com/launchdarkly/python-eventsource/commit/cd7262e4a506f49e1c55ab3624855df3e5954d8d))
+
 ## [1.2.3](https://github.com/launchdarkly/python-eventsource/compare/1.2.2...1.2.3) (2025-05-29)
 
 
