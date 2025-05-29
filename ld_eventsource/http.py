@@ -91,7 +91,7 @@ class _HttpClientImpl:
         def close():
             try:
                 resp.shutdown()
-            except AttributeError:
+            except Exception:
                 pass
             resp.release_conn()
 
