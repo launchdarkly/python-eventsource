@@ -19,8 +19,8 @@ This project should be developed against its minimum compatible version as descr
 To install the runtime and test requirements:
 
 ```
-poetry shell
 poetry install
+eval $(poetry env activate)
 ```
 
 ### Testing
