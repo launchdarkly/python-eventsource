@@ -1,3 +1,5 @@
+from urllib.parse import parse_qsl
+
 from ld_eventsource import *
 from ld_eventsource.config import *
 from ld_eventsource.testing.helpers import *
@@ -54,6 +56,48 @@ def test_sse_client_reconnects_after_socket_closed():
                     event2 = next(client.events)
                     assert event2.event == 'b'
                     assert event2.data == 'data2'
+
+
+def test_sse_client_allows_modifying_query_params_dynamically():
+    count = 0
+
+    def dynamic_query_params() -> dict[str, str]:
+        nonlocal count
+        count += 1
+        params = {'count': str(count)}
+        if count > 1:
+            params['option'] = 'updated'
+
+        return params
+
+    with start_server() as server:
+        with make_stream() as stream1:
+            with make_stream() as stream2:
+                server.for_path('/', SequentialHandler(stream1, stream2))
+                stream1.push("event: a\ndata: data1\nid: id123\n\n")
+                stream2.push("event: b\ndata: data2\n\n")
+                with SSEClient(
+                    connect=ConnectStrategy.http(f"{server.uri}?basis=unchanging&option=initial", query_params=dynamic_query_params),
+                    error_strategy=ErrorStrategy.always_continue(),
+                    initial_retry_delay=0,
+                ) as client:
+                    client.start()
+                    next(client.events)
+                    stream1.close()
+                    next(client.events)
+                    r1 = server.await_request()
+                    r1_query_params = dict(parse_qsl(r1.path.split('?', 1)[1]))
+
+                    # Ensure we can add, retain, and modify query parameters
+                    assert r1_query_params.get('count') == '1'
+                    assert r1_query_params.get('basis') == 'unchanging'
+                    assert r1_query_params.get('option') == 'initial'
+
+                    r2 = server.await_request()
+                    r2_query_params = dict(parse_qsl(r2.path.split('?', 1)[1]))
+                    assert r2_query_params.get('count') == '2'
+                    assert r2_query_params.get('basis') == 'unchanging'
+                    assert r2_query_params.get('option') == 'updated'
 
 
 def test_sse_client_sends_last_event_id_on_reconnect():

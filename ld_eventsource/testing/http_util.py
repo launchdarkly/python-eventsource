@@ -113,7 +113,7 @@ class MockServerRequestHandler(BaseHTTPRequestHandler):
     def _do_request(self):
         server_wrapper = self.server.server_wrapper
         server_wrapper.requests.put(MockServerRequest(self))
-        handler = server_wrapper.matchers.get(self.path)
+        handler = server_wrapper.matchers.get(self.path.split("?")[0], None)
         if handler:
             handler.write(self)
         else:

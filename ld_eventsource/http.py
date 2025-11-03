@@ -1,5 +1,6 @@
 from logging import Logger
 from typing import Callable, Iterator, Optional, Tuple
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from urllib3 import PoolManager
 from urllib3.exceptions import MaxRetryError
@@ -9,6 +10,12 @@ from ld_eventsource.errors import HTTPContentTypeError, HTTPStatusError
 
 _CHUNK_SIZE = 10000
 
+DynamicQueryParams = Callable[[], dict[str, str]]
+"""
+A callable that returns a dictionary of query parameters to add to the URL.
+This can be used to modify query parameters dynamically for each connection attempt.
+"""
+
 
 class _HttpConnectParams:
     def __init__(
@@ -17,15 +24,21 @@ class _HttpConnectParams:
         headers: Optional[dict] = None,
         pool: Optional[PoolManager] = None,
         urllib3_request_options: Optional[dict] = None,
+        query_params: Optional[DynamicQueryParams] = None
     ):
         self.__url = url
         self.__headers = headers
         self.__pool = pool
         self.__urllib3_request_options = urllib3_request_options
+        self.__query_params = query_params
 
     @property
     def url(self) -> str:
         return self.__url
+
+    @property
+    def query_params(self) -> Optional[DynamicQueryParams]:
+        return self.__query_params
 
     @property
     def headers(self) -> Optional[dict]:
@@ -48,7 +61,16 @@ class _HttpClientImpl:
         self.__logger = logger
 
     def connect(self, last_event_id: Optional[str]) -> Tuple[Iterator[bytes], Callable]:
-        self.__logger.info("Connecting to stream at %s" % self.__params.url)
+        url = self.__params.url
+        if self.__params.query_params is not None:
+            qp = self.__params.query_params()
+            if qp:
+                url_parts = list(urlsplit(url))
+                query = dict(parse_qsl(url_parts[3]))
+                query.update(qp)
+                url_parts[3] = urlencode(query)
+                url = urlunsplit(url_parts)
+        self.__logger.info("Connecting to stream at %s" % url)
 
         headers = self.__params.headers.copy() if self.__params.headers else {}
         headers['Cache-Control'] = 'no-cache'
@@ -67,7 +89,7 @@ class _HttpClientImpl:
         try:
             resp = self.__pool.request(
                 'GET',
-                self.__params.url,
+                url,
                 preload_content=False,
                 retries=Retry(
                     total=None, read=0, connect=0, status=0, other=0, redirect=3
