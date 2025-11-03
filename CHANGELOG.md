@@ -2,6 +2,13 @@
 
 All notable changes to the LaunchDarkly SSE Client for Python will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org).
 
+## [1.4.0](https://github.com/launchdarkly/python-eventsource/compare/1.3.0...1.4.0) (2025-11-03)
+
+
+### Features
+
+* Support dynamic query parameters on reconnect ([#51](https://github.com/launchdarkly/python-eventsource/issues/51)) ([d09ca93](https://github.com/launchdarkly/python-eventsource/commit/d09ca936a0d15f937cafd91deb11963d5f281813))
+
 ## [1.3.0](https://github.com/launchdarkly/python-eventsource/compare/1.2.4...1.3.0) (2025-06-26)
 
 
