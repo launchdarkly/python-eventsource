@@ -39,6 +39,13 @@ class SSEClient:
     :meth:`.RetryDelayStrategy.default()`, this delay will double with each subsequent retry,
     and will also have a pseudo-random jitter subtracted. You can customize this behavior with
     ``retry_delay_strategy``.
+
+    **HTTP Response Headers:**
+    When using HTTP-based connections, the response headers from each connection are available
+    via the :attr:`.Start.headers` property when reading from :attr:`all`. Each time the client
+    connects or reconnects, a :class:`.Start` action is emitted containing the headers from that
+    specific connection. This allows you to access server metadata such as rate limits, session
+    identifiers, or custom headers.
     """
 
     def __init__(
@@ -178,9 +185,10 @@ class SSEClient:
             # Reading implies starting the stream if it isn't already started. We might also
             # be restarting since we could have been interrupted at any time.
             while self.__connection_result is None:
-                fault = self._try_start(True)
+                result = self._try_start(True)
                 # return either a Start action or a Fault action
-                yield Start() if fault is None else fault
+                if result is not None:
+                    yield result
 
             lines = _BufferedLineReader.lines_from(self.__connection_result.stream)
             reader = _SSEReader(lines, self.__last_event_id, None)
@@ -263,7 +271,7 @@ class SSEClient:
             self.__current_retry_delay_strategy.apply(self.__base_retry_delay)
         )
 
-    def _try_start(self, can_return_fault: bool) -> Optional[Fault]:
+    def _try_start(self, can_return_fault: bool) -> Union[None, Start, Fault]:
         if self.__connection_result is not None:
             return None
         while True:
@@ -297,7 +305,7 @@ class SSEClient:
             self._retry_reset_baseline = time.time()
             self.__current_error_strategy = self.__base_error_strategy
             self.__interrupted = False
-            return None
+            return Start(self.__connection_result.headers)
 
     @property
     def last_event_id(self) -> Optional[str]:

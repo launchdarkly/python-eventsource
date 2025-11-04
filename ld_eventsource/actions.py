@@ -1,5 +1,5 @@
 import json
-from typing import Optional
+from typing import Any, Dict, Optional
 
 
 class Action:
@@ -110,9 +110,28 @@ class Start(Action):
     Instances of this class are only available from :attr:`.SSEClient.all`.
     A ``Start`` is returned for the first successful connection. If the client reconnects
     after a failure, there will be a :class:`.Fault` followed by a ``Start``.
+
+    Each ``Start`` action may include HTTP response headers from the connection. These headers
+    are available via the :attr:`headers` property. On reconnection, a new ``Start`` will be
+    emitted with the headers from the new connection, which may differ from the previous one.
     """
 
-    pass
+    def __init__(self, headers: Optional[Dict[str, Any]] = None):
+        self._headers = headers
+
+    @property
+    def headers(self) -> Optional[Dict[str, Any]]:
+        """
+        The HTTP response headers from the stream connection, if available.
+
+        For HTTP-based connections, this contains the headers from the SSE response.
+        For non-HTTP connections, this will be ``None``.
+
+        The headers dict uses case-insensitive keys (via urllib3's HTTPHeaderDict).
+
+        :return: the response headers, or ``None`` if not available
+        """
+        return self._headers
 
 
 class Fault(Action):

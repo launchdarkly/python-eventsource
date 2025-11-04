@@ -66,16 +66,17 @@ class RejectConnection(MockConnectionHandler):
 
 
 class RespondWithStream(MockConnectionHandler):
-    def __init__(self, stream: Iterable[bytes]):
+    def __init__(self, stream: Iterable[bytes], headers: Optional[dict] = None):
         self.__stream = stream
+        self.__headers = headers
 
     def apply(self) -> ConnectionResult:
-        return ConnectionResult(stream=self.__stream.__iter__(), closer=None)
+        return ConnectionResult(stream=self.__stream.__iter__(), closer=None, headers=self.__headers)
 
 
 class RespondWithData(RespondWithStream):
-    def __init__(self, data: str):
-        super().__init__([bytes(data, 'utf-8')])
+    def __init__(self, data: str, headers: Optional[dict] = None):
+        super().__init__([bytes(data, 'utf-8')], headers)
 
 
 class ExpectNoMoreRequests(MockConnectionHandler):

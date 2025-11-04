@@ -1,5 +1,5 @@
 from logging import Logger
-from typing import Callable, Iterator, Optional, Tuple
+from typing import Any, Callable, Dict, Iterator, Optional, Tuple, cast
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from urllib3 import PoolManager
@@ -60,7 +60,7 @@ class _HttpClientImpl:
         self.__should_close_pool = params.pool is not None
         self.__logger = logger
 
-    def connect(self, last_event_id: Optional[str]) -> Tuple[Iterator[bytes], Callable]:
+    def connect(self, last_event_id: Optional[str]) -> Tuple[Iterator[bytes], Callable, Dict[str, Any]]:
         url = self.__params.url
         if self.__params.query_params is not None:
             qp = self.__params.query_params()
@@ -109,6 +109,7 @@ class _HttpClientImpl:
             raise HTTPContentTypeError(content_type or '')
 
         stream = resp.stream(_CHUNK_SIZE)
+        response_headers = cast(Dict[str, Any], resp.headers)
 
         def close():
             try:
@@ -117,7 +118,7 @@ class _HttpClientImpl:
                 pass
             resp.release_conn()
 
-        return stream, close
+        return stream, close, response_headers
 
     def close(self):
         if self.__should_close_pool:

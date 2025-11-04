@@ -2,6 +2,8 @@ import logging
 
 from urllib3.exceptions import ProtocolError
 
+from ld_eventsource import *
+from ld_eventsource.actions import *
 from ld_eventsource.config.connect_strategy import *
 from ld_eventsource.testing.helpers import *
 from ld_eventsource.testing.http_util import *
@@ -133,3 +135,50 @@ def test_sse_client_with_http_connect_strategy():
                 stream.push("data: data1\n\n")
                 event = next(client.events)
                 assert event.data == 'data1'
+
+
+def test_http_response_headers_captured():
+    """Test that HTTP response headers are captured from the connection"""
+    with start_server() as server:
+        custom_headers = {
+            'Content-Type': 'text/event-stream',
+            'X-Custom-Header': 'custom-value',
+            'X-Rate-Limit': '100'
+        }
+        with ChunkedResponse(custom_headers) as stream:
+            server.for_path('/', stream)
+            with ConnectStrategy.http(server.uri).create_client(logger()) as client:
+                result = client.connect(None)
+                assert result.headers is not None
+                assert result.headers.get('X-Custom-Header') == 'custom-value'
+                assert result.headers.get('X-Rate-Limit') == '100'
+                # urllib3 should also include Content-Type
+                assert 'Content-Type' in result.headers
+
+
+def test_http_response_headers_in_sse_client():
+    """Test that headers are exposed via Start action in SSEClient"""
+    with start_server() as server:
+        custom_headers = {
+            'Content-Type': 'text/event-stream',
+            'X-Session-Id': 'abc123'
+        }
+        with ChunkedResponse(custom_headers) as stream:
+            server.for_path('/', stream)
+            with SSEClient(connect=ConnectStrategy.http(server.uri)) as client:
+                stream.push("event: test\ndata: data1\n\n")
+
+                # Read from .all to get Start action
+                all_items = []
+                for item in client.all:
+                    all_items.append(item)
+                    if isinstance(item, Event):
+                        break
+
+                # First item should be Start with headers
+                assert isinstance(all_items[0], Start)
+                assert all_items[0].headers is not None
+                assert all_items[0].headers.get('X-Session-Id') == 'abc123'
+
+                # Second item should be the event
+                assert isinstance(all_items[1], Event)
