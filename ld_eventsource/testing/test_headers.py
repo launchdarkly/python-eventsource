@@ -148,3 +148,68 @@ def test_connection_result_no_headers():
     """Test that ConnectionResult returns None when no headers provided"""
     result = ConnectionResult(stream=iter([b'data']), closer=None)
     assert result.headers is None
+
+
+def test_http_status_error_includes_headers():
+    """Test that HTTPStatusError can store and expose headers"""
+    headers = {'Retry-After': '120', 'X-RateLimit-Remaining': '0'}
+    error = HTTPStatusError(429, headers)
+    assert error.status == 429
+    assert error.headers == headers
+    assert error.headers.get('Retry-After') == '120'
+
+
+def test_http_content_type_error_includes_headers():
+    """Test that HTTPContentTypeError can store and expose headers"""
+    headers = {'Content-Type': 'text/plain', 'X-Custom': 'value'}
+    error = HTTPContentTypeError('text/plain', headers)
+    assert error.content_type == 'text/plain'
+    assert error.headers == headers
+    assert error.headers.get('X-Custom') == 'value'
+
+
+def test_fault_exposes_headers_from_http_status_error():
+    """Test that Fault.headers delegates to HTTPStatusError.headers"""
+    headers = {'Retry-After': '60'}
+    error = HTTPStatusError(503, headers)
+    fault = Fault(error)
+
+    assert fault.error == error
+    assert fault.headers == headers
+    assert fault.headers.get('Retry-After') == '60'
+
+
+def test_fault_exposes_headers_from_http_content_type_error():
+    """Test that Fault.headers delegates to HTTPContentTypeError.headers"""
+    headers = {'Content-Type': 'application/json'}
+    error = HTTPContentTypeError('application/json', headers)
+    fault = Fault(error)
+
+    assert fault.error == error
+    assert fault.headers == headers
+
+
+def test_fault_headers_none_for_non_http_errors():
+    """Test that Fault.headers returns None for errors without headers"""
+    error = RuntimeError("some error")
+    fault = Fault(error)
+
+    assert fault.error == error
+    assert fault.headers is None
+
+
+def test_fault_headers_none_when_no_error():
+    """Test that Fault.headers returns None when there's no error"""
+    fault = Fault(None)
+
+    assert fault.error is None
+    assert fault.headers is None
+
+
+def test_fault_headers_none_when_exception_has_no_headers():
+    """Test that Fault.headers returns None when exception doesn't provide headers"""
+    error = HTTPStatusError(500)  # No headers provided
+    fault = Fault(error)
+
+    assert fault.error == error
+    assert fault.headers is None

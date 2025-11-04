@@ -182,3 +182,60 @@ def test_http_response_headers_in_sse_client():
 
                 # Second item should be the event
                 assert isinstance(all_items[1], Event)
+
+
+def test_http_status_error_includes_headers():
+    """Test that HTTPStatusError captures response headers"""
+    with start_server() as server:
+        server.for_path('/', BasicResponse(429, None, {
+            'Retry-After': '120',
+            'X-RateLimit-Remaining': '0',
+            'X-RateLimit-Reset': '1234567890'
+        }))
+        try:
+            with ConnectStrategy.http(server.uri).create_client(logger()) as client:
+                client.connect(None)
+            raise Exception("expected exception, did not get one")
+        except HTTPStatusError as e:
+            assert e.status == 429
+            assert e.headers is not None
+            assert e.headers.get('Retry-After') == '120'
+            assert e.headers.get('X-RateLimit-Remaining') == '0'
+            assert e.headers.get('X-RateLimit-Reset') == '1234567890'
+
+
+def test_http_content_type_error_includes_headers():
+    """Test that HTTPContentTypeError captures response headers"""
+    with start_server() as server:
+        with ChunkedResponse({'Content-Type': 'application/json', 'X-Custom': 'value'}) as stream:
+            server.for_path('/', stream)
+            try:
+                with ConnectStrategy.http(server.uri).create_client(logger()) as client:
+                    client.connect(None)
+                raise Exception("expected exception, did not get one")
+            except HTTPContentTypeError as e:
+                assert e.content_type == "application/json"
+                assert e.headers is not None
+                assert e.headers.get('Content-Type') == 'application/json'
+                assert e.headers.get('X-Custom') == 'value'
+
+
+def test_fault_exposes_headers_from_http_error():
+    """Test that Fault.headers exposes headers from HTTP errors"""
+    with start_server() as server:
+        server.for_path('/', BasicResponse(503, None, {
+            'Retry-After': '60',
+            'X-Error-Code': 'SERVICE_UNAVAILABLE'
+        }))
+        with SSEClient(
+            connect=ConnectStrategy.http(server.uri),
+            error_strategy=ErrorStrategy.always_continue(),
+            retry_delay_strategy=no_delay()
+        ) as client:
+            # Read first item which should be a Fault with the error
+            fault = next(client.all)
+            assert isinstance(fault, Fault)
+            assert isinstance(fault.error, HTTPStatusError)
+            assert fault.headers is not None
+            assert fault.headers.get('Retry-After') == '60'
+            assert fault.headers.get('X-Error-Code') == 'SERVICE_UNAVAILABLE'

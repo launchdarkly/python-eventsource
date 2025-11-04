@@ -1,6 +1,8 @@
 import json
 from typing import Any, Dict, Optional
 
+from ld_eventsource.errors import ExceptionWithHeaders
+
 
 class Action:
     """
@@ -144,6 +146,9 @@ class Fault(Action):
     connection attempt has failed or an existing connection has been closed. The SSEClient
     will attempt to reconnect if you either call :meth:`.SSEClient.start()`
     or simply continue reading events after this point.
+
+    When the error includes HTTP response headers (such as for :class:`.HTTPStatusError`
+    or :class:`.HTTPContentTypeError`), they are accessible via the :attr:`headers` property.
     """
 
     def __init__(self, error: Optional[Exception]):
@@ -157,3 +162,18 @@ class Fault(Action):
         in an orderly way after sending an EOF chunk as defined by chunked transfer encoding.
         """
         return self.__error
+
+    @property
+    def headers(self) -> Optional[Dict[str, Any]]:
+        """
+        The HTTP response headers from the failed connection, if available.
+
+        This property returns headers when the error is an exception that includes them,
+        such as :class:`.HTTPStatusError` or :class:`.HTTPContentTypeError`. For other
+        error types or when the stream ended normally, this returns ``None``.
+
+        :return: the response headers, or ``None`` if not available
+        """
+        if isinstance(self.__error, ExceptionWithHeaders):
+            return self.__error.headers
+        return None
