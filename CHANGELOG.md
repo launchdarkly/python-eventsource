@@ -2,6 +2,13 @@
 
 All notable changes to the LaunchDarkly SSE Client for Python will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org).
 
+## [1.5.0](https://github.com/launchdarkly/python-eventsource/compare/1.4.0...1.5.0) (2025-11-07)
+
+
+### Features
+
+* Provide access to HTTP headers on success or error ([#53](https://github.com/launchdarkly/python-eventsource/issues/53)) ([b83f356](https://github.com/launchdarkly/python-eventsource/commit/b83f35676740f84577376fa5d2e8c11c84839699))
+
 ## [1.4.0](https://github.com/launchdarkly/python-eventsource/compare/1.3.0...1.4.0) (2025-11-03)
 
 
