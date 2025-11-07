@@ -1,5 +1,7 @@
 import json
-from typing import Optional
+from typing import Any, Dict, Optional
+
+from ld_eventsource.errors import ExceptionWithHeaders
 
 
 class Action:
@@ -110,9 +112,25 @@ class Start(Action):
     Instances of this class are only available from :attr:`.SSEClient.all`.
     A ``Start`` is returned for the first successful connection. If the client reconnects
     after a failure, there will be a :class:`.Fault` followed by a ``Start``.
+
+    Each ``Start`` action may include HTTP response headers from the connection. These headers
+    are available via the :attr:`headers` property. On reconnection, a new ``Start`` will be
+    emitted with the headers from the new connection, which may differ from the previous one.
     """
 
-    pass
+    def __init__(self, headers: Optional[Dict[str, Any]] = None):
+        self._headers = headers
+
+    @property
+    def headers(self) -> Optional[Dict[str, Any]]:
+        """
+        The HTTP response headers from the stream connection, if available.
+
+        The headers dict uses case-insensitive keys (via urllib3's HTTPHeaderDict).
+
+        :return: the response headers, or ``None`` if not available
+        """
+        return self._headers
 
 
 class Fault(Action):
@@ -125,6 +143,9 @@ class Fault(Action):
     connection attempt has failed or an existing connection has been closed. The SSEClient
     will attempt to reconnect if you either call :meth:`.SSEClient.start()`
     or simply continue reading events after this point.
+
+    When the error includes HTTP response headers (such as for :class:`.HTTPStatusError`
+    or :class:`.HTTPContentTypeError`), they are accessible via the :attr:`headers` property.
     """
 
     def __init__(self, error: Optional[Exception]):
@@ -138,3 +159,18 @@ class Fault(Action):
         in an orderly way after sending an EOF chunk as defined by chunked transfer encoding.
         """
         return self.__error
+
+    @property
+    def headers(self) -> Optional[Dict[str, Any]]:
+        """
+        The HTTP response headers from the failed connection, if available.
+
+        This property returns headers when the error is an exception that includes them,
+        such as :class:`.HTTPStatusError` or :class:`.HTTPContentTypeError`. For other
+        error types or when the stream ended normally, this returns ``None``.
+
+        :return: the response headers, or ``None`` if not available
+        """
+        if isinstance(self.__error, ExceptionWithHeaders):
+            return self.__error.headers
+        return None

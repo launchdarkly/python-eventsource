@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from logging import Logger
-from typing import Callable, Iterator, Optional, Union
+from typing import Any, Callable, Dict, Iterator, Optional, Union
 
 from urllib3 import PoolManager
 
@@ -96,9 +96,10 @@ class ConnectionResult:
     The return type of :meth:`ConnectionClient.connect()`.
     """
 
-    def __init__(self, stream: Iterator[bytes], closer: Optional[Callable]):
+    def __init__(self, stream: Iterator[bytes], closer: Optional[Callable], headers: Optional[Dict[str, Any]] = None):
         self.__stream = stream
         self.__closer = closer
+        self.__headers = headers
 
     @property
     def stream(self) -> Iterator[bytes]:
@@ -106,6 +107,18 @@ class ConnectionResult:
         An iterator that returns chunks of data.
         """
         return self.__stream
+
+    @property
+    def headers(self) -> Optional[Dict[str, Any]]:
+        """
+        The HTTP response headers, if available.
+
+        For HTTP connections, this contains the headers from the SSE stream response.
+        For non-HTTP connections, this will be ``None``.
+
+        The headers dict uses case-insensitive keys (via urllib3's HTTPHeaderDict).
+        """
+        return self.__headers
 
     def close(self):
         """
@@ -139,8 +152,8 @@ class _HttpConnectionClient(ConnectionClient):
         self.__impl = _HttpClientImpl(params, logger)
 
     def connect(self, last_event_id: Optional[str]) -> ConnectionResult:
-        stream, closer = self.__impl.connect(last_event_id)
-        return ConnectionResult(stream, closer)
+        stream, closer, headers = self.__impl.connect(last_event_id)
+        return ConnectionResult(stream, closer, headers)
 
     def close(self):
         self.__impl.close()

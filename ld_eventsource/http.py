@@ -1,5 +1,5 @@
 from logging import Logger
-from typing import Callable, Iterator, Optional, Tuple
+from typing import Any, Callable, Dict, Iterator, Optional, Tuple, cast
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from urllib3 import PoolManager
@@ -60,7 +60,7 @@ class _HttpClientImpl:
         self.__should_close_pool = params.pool is not None
         self.__logger = logger
 
-    def connect(self, last_event_id: Optional[str]) -> Tuple[Iterator[bytes], Callable]:
+    def connect(self, last_event_id: Optional[str]) -> Tuple[Iterator[bytes], Callable, Dict[str, Any]]:
         url = self.__params.url
         if self.__params.query_params is not None:
             qp = self.__params.query_params()
@@ -100,13 +100,17 @@ class _HttpClientImpl:
             reason: Optional[Exception] = e.reason
             if reason is not None:
                 raise reason  # e.reason is the underlying I/O error
+
+        # Capture headers early so they're available for both error and success cases
+        response_headers = cast(Dict[str, Any], resp.headers)
+
         if resp.status >= 400 or resp.status == 204:
-            raise HTTPStatusError(resp.status)
+            raise HTTPStatusError(resp.status, response_headers)
         content_type = resp.headers.get('Content-Type', None)
         if content_type is None or not str(content_type).startswith(
             "text/event-stream"
         ):
-            raise HTTPContentTypeError(content_type or '')
+            raise HTTPContentTypeError(content_type or '', response_headers)
 
         stream = resp.stream(_CHUNK_SIZE)
 
@@ -117,7 +121,7 @@ class _HttpClientImpl:
                 pass
             resp.release_conn()
 
-        return stream, close
+        return stream, close, response_headers
 
     def close(self):
         if self.__should_close_pool:
