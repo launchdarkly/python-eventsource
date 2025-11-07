@@ -126,9 +126,6 @@ class Start(Action):
         """
         The HTTP response headers from the stream connection, if available.
 
-        For HTTP-based connections, this contains the headers from the SSE response.
-        For non-HTTP connections, this will be ``None``.
-
         The headers dict uses case-insensitive keys (via urllib3's HTTPHeaderDict).
 
         :return: the response headers, or ``None`` if not available
