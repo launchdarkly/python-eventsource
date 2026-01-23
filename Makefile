@@ -2,7 +2,7 @@ PYTEST_FLAGS=-W error::SyntaxWarning
 
 TEMP_TEST_OUTPUT=/tmp/sse-contract-test-service.log
 
-SPHINXOPTS    =
+SPHINXOPTS    = -W --keep-going
 SPHINXBUILD   = sphinx-build
 SPHINXPROJ    = launchdarkly-eventsource
 SOURCEDIR     = docs

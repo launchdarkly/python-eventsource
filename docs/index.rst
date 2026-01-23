@@ -18,7 +18,6 @@ ld_eventsource.actions module
 
 .. automodule:: ld_eventsource.actions
     :members:
-    :imported-members:
     :special-members: __init__
     :show-inheritance:
 
@@ -36,6 +35,5 @@ ld_eventsource.errors module
 
 .. automodule:: ld_eventsource.errors
     :members:
-    :imported-members:
     :special-members: __init__
     :show-inheritance:
