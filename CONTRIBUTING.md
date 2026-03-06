@@ -23,6 +23,12 @@ poetry install
 eval $(poetry env activate)
 ```
 
+To also install the optional async dependencies (required to use `AsyncSSEClient`):
+
+```
+poetry install --extras async
+```
+
 ### Testing
 
 To run all unit tests:
@@ -34,6 +40,11 @@ make test
 To run the standardized contract tests that are run against all LaunchDarkly SSE client implementations:
 ```
 make contract-tests
+```
+
+To run the same contract tests against the async implementation:
+```
+make async-contract-tests
 ```
 
 ### Linting

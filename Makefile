@@ -1,6 +1,7 @@
 PYTEST_FLAGS=-W error::SyntaxWarning
 
 TEMP_TEST_OUTPUT=/tmp/sse-contract-test-service.log
+TEMP_ASYNC_TEST_OUTPUT=/tmp/sse-async-contract-test-service.log
 
 SPHINXOPTS    = -W --keep-going
 SPHINXBUILD   = sphinx-build
@@ -70,3 +71,21 @@ run-contract-tests:
 .PHONY: contract-tests
 contract-tests: #! Run the SSE contract test harness
 contract-tests: install-contract-tests-deps start-contract-test-service-bg run-contract-tests
+
+.PHONY: start-async-contract-test-service
+start-async-contract-test-service:
+	@cd contract-tests && poetry run python async_service.py 8001
+
+.PHONY: start-async-contract-test-service-bg
+start-async-contract-test-service-bg:
+	@echo "Async test service output will be captured in $(TEMP_ASYNC_TEST_OUTPUT)"
+	@make start-async-contract-test-service >$(TEMP_ASYNC_TEST_OUTPUT) 2>&1 &
+
+.PHONY: run-async-contract-tests
+run-async-contract-tests:
+	@curl -s https://raw.githubusercontent.com/launchdarkly/sse-contract-tests/main/downloader/run.sh \
+      | VERSION=v2 PARAMS="-url http://localhost:8001 -debug -stop-service-at-end" sh
+
+.PHONY: async-contract-tests
+async-contract-tests: #! Run the SSE async contract test harness
+async-contract-tests: install-contract-tests-deps start-async-contract-test-service-bg run-async-contract-tests
