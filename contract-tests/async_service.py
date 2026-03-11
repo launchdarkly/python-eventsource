@@ -5,7 +5,6 @@ import sys
 from logging.config import dictConfig
 
 import aiohttp.web
-
 from async_stream_entity import AsyncStreamEntity
 
 default_port = 8000

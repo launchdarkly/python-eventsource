@@ -45,7 +45,8 @@ class AsyncConnectStrategy:
         :param query_params: optional callable that returns a dict of query params per connection
         """
         # Import here to avoid requiring aiohttp for users who don't use async HTTP
-        from ld_eventsource.async_http import _AsyncHttpClientImpl, _AsyncHttpConnectParams
+        from ld_eventsource.async_http import (_AsyncHttpClientImpl,
+                                               _AsyncHttpConnectParams)
         return _AsyncHttpConnectStrategy(
             _AsyncHttpConnectParams(url, headers, session, aiohttp_request_options, query_params)
         )

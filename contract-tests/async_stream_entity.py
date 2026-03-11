@@ -11,7 +11,8 @@ import aiohttp
 sys.path.insert(1, os.path.join(sys.path[0], '..'))
 from ld_eventsource.actions import Comment, Event, Fault  # noqa: E402
 from ld_eventsource.async_client import AsyncSSEClient  # noqa: E402
-from ld_eventsource.config.async_connect_strategy import AsyncConnectStrategy  # noqa: E402
+from ld_eventsource.config.async_connect_strategy import \
+    AsyncConnectStrategy  # noqa: E402
 from ld_eventsource.config.error_strategy import ErrorStrategy  # noqa: E402
 
 

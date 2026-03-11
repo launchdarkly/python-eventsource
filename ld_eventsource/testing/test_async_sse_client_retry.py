@@ -8,9 +8,9 @@ from ld_eventsource.config.error_strategy import ErrorStrategy
 from ld_eventsource.config.retry_delay_strategy import RetryDelayStrategy
 from ld_eventsource.errors import HTTPStatusError
 from ld_eventsource.testing.async_helpers import (AsyncExpectNoMoreRequests,
-                                                   AsyncRejectConnection,
-                                                   AsyncRespondWithData,
-                                                   MockAsyncConnectStrategy)
+                                                  AsyncRejectConnection,
+                                                  AsyncRespondWithData,
+                                                  MockAsyncConnectStrategy)
 from ld_eventsource.testing.helpers import no_delay, retry_for_status
 
 

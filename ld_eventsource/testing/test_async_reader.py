@@ -1,7 +1,8 @@
 import pytest
 
 from ld_eventsource.actions import Comment, Event
-from ld_eventsource.async_reader import _AsyncBufferedLineReader, _AsyncSSEReader
+from ld_eventsource.async_reader import (_AsyncBufferedLineReader,
+                                         _AsyncSSEReader)
 
 
 async def lines_from_bytes(*chunks: bytes):

@@ -4,9 +4,10 @@ import time
 from typing import AsyncIterable, Optional, Union
 
 from ld_eventsource.actions import Action, Event, Fault, Start
-from ld_eventsource.async_reader import _AsyncBufferedLineReader, _AsyncSSEReader
+from ld_eventsource.async_reader import (_AsyncBufferedLineReader,
+                                         _AsyncSSEReader)
 from ld_eventsource.config.async_connect_strategy import (
-    AsyncConnectStrategy, AsyncConnectionClient, AsyncConnectionResult)
+    AsyncConnectionClient, AsyncConnectionResult, AsyncConnectStrategy)
 from ld_eventsource.config.error_strategy import ErrorStrategy
 from ld_eventsource.config.retry_delay_strategy import RetryDelayStrategy
 

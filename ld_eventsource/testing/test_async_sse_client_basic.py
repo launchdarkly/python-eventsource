@@ -3,7 +3,7 @@ import pytest
 from ld_eventsource.actions import Comment, Event, Fault, Start
 from ld_eventsource.async_client import AsyncSSEClient
 from ld_eventsource.testing.async_helpers import (AsyncRespondWithData,
-                                                   MockAsyncConnectStrategy)
+                                                  MockAsyncConnectStrategy)
 
 
 @pytest.mark.asyncio
@@ -137,7 +137,8 @@ async def test_close_stops_iteration():
 async def test_string_url_creates_http_strategy():
     # Just verifies the constructor accepts a string without crashing
     # (actual HTTP is tested separately)
-    from ld_eventsource.config.async_connect_strategy import AsyncConnectStrategy
+    from ld_eventsource.config.async_connect_strategy import \
+        AsyncConnectStrategy
     client = AsyncSSEClient(connect="http://localhost:9999/stream")
     assert client is not None
     await client.close()
