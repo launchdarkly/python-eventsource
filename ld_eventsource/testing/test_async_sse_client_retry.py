@@ -10,9 +10,8 @@ from ld_eventsource.errors import HTTPStatusError
 from ld_eventsource.testing.async_helpers import (AsyncExpectNoMoreRequests,
                                                    AsyncRejectConnection,
                                                    AsyncRespondWithData,
-                                                   MockAsyncConnectStrategy,
-                                                   no_delay,
-                                                   retry_for_status)
+                                                   MockAsyncConnectStrategy)
+from ld_eventsource.testing.helpers import no_delay, retry_for_status
 
 
 @pytest.mark.asyncio

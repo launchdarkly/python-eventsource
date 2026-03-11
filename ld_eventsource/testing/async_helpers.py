@@ -6,31 +6,6 @@ from typing import AsyncIterable, AsyncIterator, List, Optional
 
 from ld_eventsource.config.async_connect_strategy import (
     AsyncConnectionClient, AsyncConnectionResult, AsyncConnectStrategy)
-from ld_eventsource.config.error_strategy import ErrorStrategy
-from ld_eventsource.config.retry_delay_strategy import RetryDelayStrategy
-from ld_eventsource.errors import HTTPStatusError
-from ld_eventsource.testing.http_util import ChunkedResponse
-
-
-def make_stream() -> ChunkedResponse:
-    return ChunkedResponse({'Content-Type': 'text/event-stream'})
-
-
-def retry_for_status(status: int) -> ErrorStrategy:
-    return ErrorStrategy.from_lambda(
-        lambda error: (
-            (
-                ErrorStrategy.CONTINUE
-                if isinstance(error, HTTPStatusError) and error.status == status
-                else ErrorStrategy.FAIL
-            ),
-            None,
-        )
-    )
-
-
-def no_delay() -> RetryDelayStrategy:
-    return RetryDelayStrategy.from_lambda(lambda _: (0, None))
 
 
 class MockAsyncConnectStrategy(AsyncConnectStrategy):

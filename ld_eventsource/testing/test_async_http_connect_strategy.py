@@ -5,8 +5,7 @@ import pytest
 from ld_eventsource.async_client import AsyncSSEClient
 from ld_eventsource.config.async_connect_strategy import AsyncConnectStrategy
 from ld_eventsource.errors import HTTPContentTypeError, HTTPStatusError
-from ld_eventsource.testing.async_helpers import no_delay
-from ld_eventsource.testing.helpers import retry_for_status
+from ld_eventsource.testing.helpers import no_delay, retry_for_status
 from ld_eventsource.testing.http_util import (BasicResponse, ChunkedResponse,
                                                CauseNetworkError, start_server)
 
