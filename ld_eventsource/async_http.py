@@ -89,6 +89,11 @@ class _AsyncHttpClientImpl:
             else {}
         )
         request_options['headers'] = headers
+        # Disable aiohttp's default 5-minute total timeout, which would kill
+        # long-lived SSE connections. If the caller provided a timeout (e.g.
+        # sock_read), preserve it but ensure total=None.
+        if 'timeout' not in request_options:
+            request_options['timeout'] = aiohttp.ClientTimeout(total=None)
 
         session = await self._get_session()
         resp = await session.get(url, **request_options)

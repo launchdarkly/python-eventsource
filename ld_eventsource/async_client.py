@@ -134,7 +134,8 @@ class AsyncSSEClient:
                 if result is not None:
                     yield result
 
-            lines = _AsyncBufferedLineReader.lines_from(self.__connection_result.stream)
+            current_result = self.__connection_result
+            lines = _AsyncBufferedLineReader.lines_from(current_result.stream)
             reader = _AsyncSSEReader(lines, self.__last_event_id, None)
             error: Optional[Exception] = None
             try:
@@ -143,14 +144,14 @@ class AsyncSSEClient:
                     yield ec
                     if self.__interrupted:
                         break
-                self.__connection_result = None
             except Exception as e:
                 if self.__closed:
                     return
                 error = e
-                self.__connection_result = None
             finally:
                 self.__last_event_id = reader.last_event_id
+                await current_result.close()
+                self.__connection_result = None
 
             self._compute_next_retry_delay()
             fail_or_continue, self.__current_error_strategy = (
