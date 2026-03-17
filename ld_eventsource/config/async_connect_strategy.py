@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 from logging import Logger
-from typing import Any, AsyncIterator, Callable, Dict, Optional
+from typing import AsyncIterator, Callable, Optional
+
+from ld_eventsource.errors import Headers
 
 
 class AsyncConnectStrategy:
@@ -89,7 +91,7 @@ class AsyncConnectionResult:
         self,
         stream: AsyncIterator[bytes],
         closer: Optional[Callable],
-        headers: Optional[Dict[str, Any]] = None,
+        headers: Optional[Headers] = None,
     ):
         self.__stream = stream
         self.__closer = closer
@@ -103,9 +105,11 @@ class AsyncConnectionResult:
         return self.__stream
 
     @property
-    def headers(self) -> Optional[Dict[str, Any]]:
+    def headers(self) -> Optional[Headers]:
         """
         The HTTP response headers, if available.
+
+        Header name lookups are case-insensitive per RFC 7230.
         """
         return self.__headers
 

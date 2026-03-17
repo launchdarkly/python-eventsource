@@ -1,11 +1,11 @@
 import asyncio
 from logging import Logger
-from typing import Any, AsyncIterator, Callable, Dict, Optional, Tuple
+from typing import AsyncIterator, Callable, Optional, Tuple
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 import aiohttp
 
-from ld_eventsource.errors import HTTPContentTypeError, HTTPStatusError
+from ld_eventsource.errors import HTTPContentTypeError, HTTPStatusError, Headers
 
 _CHUNK_SIZE = 10000
 
@@ -64,7 +64,7 @@ class _AsyncHttpClientImpl:
 
     async def connect(
         self, last_event_id: Optional[str]
-    ) -> Tuple[AsyncIterator[bytes], Callable, Dict[str, Any]]:
+    ) -> Tuple[AsyncIterator[bytes], Callable, Headers]:
         url = self.__params.url
         if self.__params.query_params is not None:
             qp = self.__params.query_params()
@@ -98,7 +98,7 @@ class _AsyncHttpClientImpl:
         session = await self._get_session()
         resp = await session.get(url, **request_options)
 
-        response_headers: Dict[str, Any] = dict(resp.headers)
+        response_headers = resp.headers
 
         if resp.status >= 400 or resp.status == 204:
             await resp.release()

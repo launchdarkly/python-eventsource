@@ -1,7 +1,7 @@
 import json
-from typing import Any, Dict, Optional
+from typing import Optional
 
-from ld_eventsource.errors import ExceptionWithHeaders
+from ld_eventsource.errors import ExceptionWithHeaders, Headers
 
 
 class Action:
@@ -118,15 +118,15 @@ class Start(Action):
     emitted with the headers from the new connection, which may differ from the previous one.
     """
 
-    def __init__(self, headers: Optional[Dict[str, Any]] = None):
+    def __init__(self, headers: Optional[Headers] = None):
         self._headers = headers
 
     @property
-    def headers(self) -> Optional[Dict[str, Any]]:
+    def headers(self) -> Optional[Headers]:
         """
         The HTTP response headers from the stream connection, if available.
 
-        The headers dict uses case-insensitive keys (via urllib3's HTTPHeaderDict).
+        Header name lookups are case-insensitive per RFC 7230.
 
         :return: the response headers, or ``None`` if not available
         """

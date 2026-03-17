@@ -2,10 +2,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from logging import Logger
-from typing import Any, Callable, Dict, Iterator, Optional, Union
+from typing import Callable, Iterator, Optional, Union
 
 from urllib3 import PoolManager
 
+from ld_eventsource.errors import Headers
 from ld_eventsource.http import (DynamicQueryParams, _HttpClientImpl,
                                  _HttpConnectParams)
 
@@ -96,7 +97,7 @@ class ConnectionResult:
     The return type of :meth:`ConnectionClient.connect()`.
     """
 
-    def __init__(self, stream: Iterator[bytes], closer: Optional[Callable], headers: Optional[Dict[str, Any]] = None):
+    def __init__(self, stream: Iterator[bytes], closer: Optional[Callable], headers: Optional[Headers] = None):
         self.__stream = stream
         self.__closer = closer
         self.__headers = headers
@@ -109,14 +110,14 @@ class ConnectionResult:
         return self.__stream
 
     @property
-    def headers(self) -> Optional[Dict[str, Any]]:
+    def headers(self) -> Optional[Headers]:
         """
         The HTTP response headers, if available.
 
         For HTTP connections, this contains the headers from the SSE stream response.
         For non-HTTP connections, this will be ``None``.
 
-        The headers dict uses case-insensitive keys (via urllib3's HTTPHeaderDict).
+        Header name lookups are case-insensitive per RFC 7230.
         """
         return self.__headers
 
