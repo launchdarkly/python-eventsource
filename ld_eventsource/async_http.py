@@ -5,7 +5,8 @@ from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 import aiohttp
 
-from ld_eventsource.errors import HTTPContentTypeError, HTTPStatusError, Headers
+from ld_eventsource.errors import (Headers, HTTPContentTypeError,
+                                   HTTPStatusError)
 
 _CHUNK_SIZE = 10000
 

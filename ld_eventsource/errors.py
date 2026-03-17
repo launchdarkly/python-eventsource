@@ -1,27 +1,15 @@
-from typing import Any, Iterator, Optional, Protocol, Tuple, runtime_checkable
+from collections.abc import Mapping
+from typing import Any, Optional, Protocol, runtime_checkable
 
+Headers = Mapping[str, Any]
+"""
+A case-insensitive mapping of HTTP response headers.
 
-class Headers(Protocol):
-    """
-    A case-insensitive mapping of HTTP response headers.
-
-    Header name lookups are case-insensitive per RFC 7230, so
-    ``headers.get('content-type')`` and ``headers.get('Content-Type')``
-    return the same value. The concrete type returned depends on the HTTP
-    backend in use and should not be relied upon directly.
-    """
-
-    def get(self, key: str, default: Any = None) -> Any:
-        """Return the value for *key* (case-insensitive), or *default*."""
-        ...
-
-    def __getitem__(self, key: str) -> Any: ...
-
-    def __contains__(self, key: object) -> bool: ...
-
-    def __iter__(self) -> Iterator[str]: ...
-
-    def items(self) -> Any: ...
+Header name lookups are case-insensitive per RFC 7230, so
+``headers.get('content-type')`` and ``headers.get('Content-Type')``
+return the same value. The concrete type returned depends on the HTTP
+backend in use and should not be relied upon directly.
+"""
 
 
 @runtime_checkable
