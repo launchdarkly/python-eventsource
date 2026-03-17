@@ -161,13 +161,15 @@ class Fault(Action):
         return self.__error
 
     @property
-    def headers(self) -> Optional[Dict[str, Any]]:
+    def headers(self) -> Optional[Headers]:
         """
         The HTTP response headers from the failed connection, if available.
 
         This property returns headers when the error is an exception that includes them,
         such as :class:`.HTTPStatusError` or :class:`.HTTPContentTypeError`. For other
         error types or when the stream ended normally, this returns ``None``.
+
+        Header name lookups are case-insensitive per RFC 7230.
 
         :return: the response headers, or ``None`` if not available
         """
