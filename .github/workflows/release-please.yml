@@ -13,7 +13,7 @@ jobs:
       contents: write # Contents and pull-requests are for release-please to make releases.
       pull-requests: write
     steps:
-      - uses: googleapis/release-please-action@v4
+      - uses: googleapis/release-please-action@16a9c90856f42705d54a6fda1823352bdc62cf38 # v4
         id: release
 
       - uses: actions/checkout@v4
@@ -28,7 +28,7 @@ jobs:
 
       - name: Install poetry
         if: ${{ steps.release.outputs.releases_created == 'true' }}
-        uses: abatilo/actions-poetry@7b6d33e44b4f08d7021a1dee3c044e9c253d6439
+        uses: abatilo/actions-poetry@7b6d33e44b4f08d7021a1dee3c044e9c253d6439 # 7b6d33e44b4f08d7021a1dee3c044e9c253d6439
 
       - uses: launchdarkly/gh-actions/actions/release-secrets@release-secrets-v1.2.0
         name: "Get PyPI token"
@@ -45,6 +45,6 @@ jobs:
 
       - name: Publish package distributions to PyPI
         if: ${{ steps.release.outputs.releases_created == 'true' }}
-        uses: pypa/gh-action-pypi-publish@release/v1
+        uses: pypa/gh-action-pypi-publish@ed0c53931b1dc9bd32cbe73a98c7f6766f8a527e # release/v1
         with:
           password: ${{env.PYPI_AUTH_TOKEN}}
