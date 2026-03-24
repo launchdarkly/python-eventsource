@@ -14,7 +14,13 @@ This package's primary purpose is to support the [LaunchDarkly SDK for Python](h
 * Setting read timeouts, custom headers, and other HTTP request properties.
 * Specifying that connections should be retried under circumstances where the standard EventSource behavior would not retry them, such as if the server returns an HTTP error status.
 
-This is a synchronous implementation which blocks the caller's thread when reading events or reconnecting. By default, it uses `urllib3` to make HTTP requests, but it can be configured to read any input stream.
+The default `SSEClient` is a synchronous implementation which blocks the caller's thread when reading events or reconnecting. By default, it uses `urllib3` to make HTTP requests, but it can be configured to read any input stream.
+
+An async implementation, `AsyncSSEClient`, is also available for use with `asyncio`-based applications. It uses `aiohttp` for HTTP and requires installing the optional `async` extra:
+
+```
+pip install launchdarkly-eventsource[async]
+```
 
 ## Supported Python versions
 

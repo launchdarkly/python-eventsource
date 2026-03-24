@@ -46,6 +46,12 @@ jobs:
       - name: run SSE contract tests
         run: make run-contract-tests
 
+      - name: start async SSE contract test service
+        run: make start-async-contract-test-service-bg
+
+      - name: run async SSE contract tests
+        run: make run-async-contract-tests
+
   windows:
     runs-on: windows-latest
 

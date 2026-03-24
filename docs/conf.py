@@ -170,3 +170,6 @@ texinfo_documents = [
 autodoc_default_options = {
     'undoc-members': False
 }
+
+# aiohttp is an optional dependency not installed during doc builds
+autodoc_mock_imports = ['aiohttp']
