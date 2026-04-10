@@ -2,6 +2,13 @@
 
 All notable changes to the LaunchDarkly SSE Client for Python will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org).
 
+## [1.6.0](https://github.com/launchdarkly/python-eventsource/compare/1.5.1...1.6.0) (2026-04-10)
+
+
+### Features
+
+* Add AsyncSSEClient with aiohttp-based async/await support ([#58](https://github.com/launchdarkly/python-eventsource/issues/58)) ([574c673](https://github.com/launchdarkly/python-eventsource/commit/574c67384a64a60a251cf3f360c879cbaedc5e74))
+
 ## [1.5.1](https://github.com/launchdarkly/python-eventsource/compare/1.5.0...1.5.1) (2026-01-23)
 
 
