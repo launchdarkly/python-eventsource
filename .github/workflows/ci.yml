@@ -20,15 +20,14 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+
+      - name: Install poetry
+        run: pipx install poetry==1.8.5
+
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-
-      - name: Install poetry
-        uses: abatilo/actions-poetry@7b6d33e44b4f08d7021a1dee3c044e9c253d6439
-        with:
-          poetry-version: "1.8.5"
 
       - uses: ./.github/actions/build
       - uses: ./.github/actions/build-docs
@@ -67,15 +66,14 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+
+      - name: Install poetry
+        run: pipx install poetry==1.8.5
+
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-
-      - name: Install poetry
-        uses: abatilo/actions-poetry@7b6d33e44b4f08d7021a1dee3c044e9c253d6439
-        with:
-          poetry-version: "1.8.5"
 
       - name: Install requirements
         run: poetry install
