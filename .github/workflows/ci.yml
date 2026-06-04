@@ -27,6 +27,8 @@ jobs:
 
       - name: Install poetry
         uses: abatilo/actions-poetry@7b6d33e44b4f08d7021a1dee3c044e9c253d6439
+        with:
+          poetry-version: "1.8.5"
 
       - uses: ./.github/actions/build
       - uses: ./.github/actions/build-docs
@@ -72,6 +74,8 @@ jobs:
 
       - name: Install poetry
         uses: abatilo/actions-poetry@7b6d33e44b4f08d7021a1dee3c044e9c253d6439
+        with:
+          poetry-version: "1.8.5"
 
       - name: Install requirements
         run: poetry install
