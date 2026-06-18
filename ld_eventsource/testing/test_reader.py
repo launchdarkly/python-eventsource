@@ -55,7 +55,7 @@ class TestBufferedLineReader:
 
 class TestSSEReader:
     def expect_output(self, lines, expected):
-        output = list(_SSEReader(lines).events_and_comments)
+        output = list(_SSEReader(lines).events_and_comments())
         assert output == expected
 
     def test_parses_event_with_all_fields(self):
@@ -98,12 +98,12 @@ class TestSSEReader:
             got_retry = value
 
         lines = ["retry: 1000"]
-        list(_SSEReader(lines, None, store_retry).events_and_comments)
+        list(_SSEReader(lines, None, store_retry).events_and_comments())
         assert got_retry == 1000
 
     def test_ignores_retry_interval_if_no_callback_given(self):
         lines = ["retry: 1000"]
-        list(_SSEReader(lines, None, None).events_and_comments)
+        list(_SSEReader(lines, None, None).events_and_comments())
 
     def test_remembers_last_event_id(self):
         lines = [
@@ -124,5 +124,5 @@ class TestSSEReader:
             Event("message", "third", None, "b"),
             Event("message", "fourth", "", ""),
         ]
-        output = list(_SSEReader(lines, last_event_id="a").events_and_comments)
+        output = list(_SSEReader(lines, last_event_id="a").events_and_comments())
         assert output == expected

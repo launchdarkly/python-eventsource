@@ -66,7 +66,6 @@ class _SSEReader:
     def last_event_id(self):
         return self._last_event_id
 
-    @property
     def events_and_comments(self):
         event_type = ""
         event_data = None
