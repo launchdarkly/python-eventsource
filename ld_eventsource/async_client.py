@@ -16,6 +16,12 @@ class AsyncSSEClient:
     """
     An async client for reading a Server-Sent Events stream.
 
+    .. caution::
+        This feature is experimental and should NOT be considered ready for production
+        use. It may change or be removed without notice and is not subject to backwards
+        compatibility guarantees. Pin to a specific minor version and review the changelog
+        before upgrading.
+
     This is an async/await implementation. The expected usage is to create an ``AsyncSSEClient``
     instance (either as an async context manager or directly), then read from it using the async
     iterator properties :attr:`events` or :attr:`all`.
