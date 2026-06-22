@@ -16,18 +16,13 @@ jobs:
 
     strategy:
       matrix:
-        python-version: ["3.9", "3.10", "3.11", "3.12", "3.13"]
+        python-version: ["3.9", "3.10", "3.11", "3.12", "3.13", "3.14"]
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install poetry
-        uses: abatilo/actions-poetry@7b6d33e44b4f08d7021a1dee3c044e9c253d6439
-        with:
-          poetry-version: "1.8.5"
-
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
+      - name: Set up uv
+        uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
         with:
           python-version: ${{ matrix.python-version }}
 
@@ -64,23 +59,18 @@ jobs:
 
     strategy:
       matrix:
-        python-version: ["3.9", "3.10", "3.11", "3.12", "3.13"]
+        python-version: ["3.9", "3.10", "3.11", "3.12", "3.13", "3.14"]
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install poetry
-        uses: abatilo/actions-poetry@7b6d33e44b4f08d7021a1dee3c044e9c253d6439
-        with:
-          poetry-version: "1.8.5"
-
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
+      - name: Set up uv
+        uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
         with:
           python-version: ${{ matrix.python-version }}
 
       - name: Install requirements
-        run: poetry install
+        run: uv sync --all-extras
 
       - uses: ./.github/actions/build
       - uses: ./.github/actions/build-docs

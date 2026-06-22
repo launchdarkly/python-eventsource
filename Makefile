@@ -18,7 +18,7 @@ help: #! Show this help message
 
 .PHONY: install
 install:
-	poetry install
+	@uv sync --all-extras
 
 #
 # Quality control checks
@@ -27,14 +27,14 @@ install:
 .PHONY: test
 test: #! Run unit tests
 test: install
-	poetry run pytest $(PYTEST_FLAGS)
+	@uv run pytest $(PYTEST_FLAGS)
 
 .PHONY: lint
 lint: #! Run type analysis and linting checks
 lint: install
-	@poetry run mypy ld_eventsource
-	@poetry run isort --check --atomic ld_eventsource contract-tests
-	@poetry run pycodestyle ld_eventsource contract-tests
+	@uv run mypy ld_eventsource
+	@uv run isort --check --atomic ld_eventsource contract-tests
+	@uv run pycodestyle ld_eventsource contract-tests
 
 #
 # Documentation generation
@@ -42,9 +42,9 @@ lint: install
 
 .PHONY: docs
 docs: #! Generate sphinx-based documentation
-	poetry install --with docs
+	@uv sync --group docs
 	cd docs
-	poetry run $(SPHINXBUILD) -M html "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
+	@uv run $(SPHINXBUILD) -M html "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
 
 #
 # Contract test service commands
@@ -52,11 +52,11 @@ docs: #! Generate sphinx-based documentation
 
 .PHONY: install-contract-tests-deps
 install-contract-tests-deps:
-	poetry install --with contract-tests
+	uv sync --all-extras --group contract-tests
 
 .PHONY: start-contract-test-service
-start-contract-test-service:
-	@cd contract-tests && poetry run python service.py
+start-contract-test-service: install-contract-tests-deps
+	@cd contract-tests && uv run python service.py
 
 .PHONY: start-contract-test-service-bg
 start-contract-test-service-bg:
@@ -73,8 +73,8 @@ contract-tests: #! Run the SSE contract test harness
 contract-tests: install-contract-tests-deps start-contract-test-service-bg run-contract-tests
 
 .PHONY: start-async-contract-test-service
-start-async-contract-test-service:
-	@cd contract-tests && poetry run python async_service.py 8001
+start-async-contract-test-service: install-contract-tests-deps
+	@cd contract-tests && uv run python async_service.py 8001
 
 .PHONY: start-async-contract-test-service-bg
 start-async-contract-test-service-bg:
