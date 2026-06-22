@@ -10,6 +10,12 @@ class AsyncConnectStrategy:
     """
     An abstraction for how :class:`.AsyncSSEClient` should obtain an input stream.
 
+    .. caution::
+        This feature is experimental and should NOT be considered ready for production
+        use. It may change or be removed without notice and is not subject to backwards
+        compatibility guarantees. Pin to a specific minor version and review the changelog
+        before upgrading.
+
     The default implementation is :meth:`http()`, which makes HTTP requests with ``aiohttp``.
     Or, if you want to consume an input stream from some other source, you can create your own
     subclass of :class:`AsyncConnectStrategy`.
@@ -58,6 +64,12 @@ class AsyncConnectionClient:
     """
     An object provided by :class:`.AsyncConnectStrategy` that is retained by a single
     :class:`.AsyncSSEClient` to perform all connection attempts by that instance.
+
+    .. caution::
+        This feature is experimental and should NOT be considered ready for production
+        use. It may change or be removed without notice and is not subject to backwards
+        compatibility guarantees. Pin to a specific minor version and review the changelog
+        before upgrading.
     """
 
     async def connect(self, last_event_id: Optional[str]) -> AsyncConnectionResult:
@@ -85,6 +97,12 @@ class AsyncConnectionClient:
 class AsyncConnectionResult:
     """
     The return type of :meth:`AsyncConnectionClient.connect()`.
+
+    .. caution::
+        This feature is experimental and should NOT be considered ready for production
+        use. It may change or be removed without notice and is not subject to backwards
+        compatibility guarantees. Pin to a specific minor version and review the changelog
+        before upgrading.
     """
 
     def __init__(

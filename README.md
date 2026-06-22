@@ -22,6 +22,11 @@ An async implementation, `AsyncSSEClient`, is also available for use with `async
 pip install launchdarkly-eventsource[async]
 ```
 
+> [!CAUTION]
+> The async implementation (`AsyncSSEClient` and its associated `AsyncConnectStrategy` API) is experimental and should NOT be considered ready for production use. It may change or be removed without notice and is not subject to backwards compatibility guarantees.
+>
+> Pin to a specific minor version and review the changelog before upgrading.
+
 ## Supported Python versions
 
 This version of the package is compatible with Python 3.9 and higher.

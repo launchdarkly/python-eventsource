@@ -95,7 +95,7 @@ class SSEClient:
         if isinstance(connect, str):
             connect = ConnectStrategy.http(connect)
         elif not isinstance(connect, ConnectStrategy):
-            raise TypeError("request must be either a string or ConnectStrategy")
+            raise TypeError("connect must be either a string or ConnectStrategy")
 
         self.__base_retry_delay = initial_retry_delay
         self.__base_retry_delay_strategy = (
@@ -116,7 +116,7 @@ class SSEClient:
             logger.propagate = False
         self.__logger = logger
 
-        self.__connection_client = connect.create_client(logger)
+        self.__connection_client: ConnectionClient = connect.create_client(logger)
         self.__connection_result: Optional[ConnectionResult] = None
         self._retry_reset_baseline: float = 0
         self.__disconnected_time: float = 0
@@ -151,6 +151,7 @@ class SSEClient:
         """
         self.__closed = True
         self.interrupt()
+        self.__connection_client.close()
 
     def interrupt(self):
         """
@@ -181,6 +182,22 @@ class SSEClient:
         already active, so you do not need to call :meth:`start()` unless you want to verify that
         the stream is connected before trying to read events.
         """
+        return self._all_generator()
+
+    @property
+    def events(self) -> Iterable[Event]:
+        """
+        An iterable series of :class:`.Event` objects received from the stream.
+
+        Use :attr:`all` instead if you also want to know about other kinds of occurrences.
+
+        Iterating over this property automatically starts or restarts the stream if it is not
+        already active, so you do not need to call :meth:`start()` unless you want to verify that
+        the stream is connected before trying to read events.
+        """
+        return self._events_generator()
+
+    def _all_generator(self):
         while True:
             # Reading implies starting the stream if it isn't already started. We might also
             # be restarting since we could have been interrupted at any time.
@@ -194,11 +211,12 @@ class SSEClient:
             reader = _SSEReader(lines, self.__last_event_id, None)
             error: Optional[Exception] = None
             try:
-                for ec in reader.events_and_comments:
+                for ec in reader.events_and_comments():
+                    self.__last_event_id = reader.last_event_id
                     yield ec
                     if self.__interrupted:
                         break
-                # If we finished iterating all of reader.events_and_comments, it means the stream
+                # If we finished iterating all of reader.events_and_comments(), it means the stream
                 # was closed without an error.
                 self.__connection_result = None
             except Exception as e:
@@ -226,18 +244,8 @@ class SSEClient:
             yield Fault(error)
             continue  # try to connect again
 
-    @property
-    def events(self) -> Iterable[Event]:
-        """
-        An iterable series of :class:`.Event` objects received from the stream.
-
-        Use :attr:`all` instead if you also want to know about other kinds of occurrences.
-
-        Iterating over this property automatically starts or restarts the stream if it is not
-        already active, so you do not need to call :meth:`start()` unless you want to verify that
-        the stream is connected before trying to read events.
-        """
-        for item in self.all:
+    def _events_generator(self):
+        for item in self._all_generator():
             if isinstance(item, Event):
                 yield item
 
