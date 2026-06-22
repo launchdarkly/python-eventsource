@@ -29,7 +29,7 @@ pip install launchdarkly-eventsource[async]
 
 ## Supported Python versions
 
-This version of the package is compatible with Python 3.9 and higher.
+This version of the package is compatible with Python 3.10 and higher.
 
 ## Contributing
 
