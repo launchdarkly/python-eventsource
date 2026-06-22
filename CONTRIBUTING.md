@@ -19,14 +19,14 @@ This project should be developed against its minimum compatible version as descr
 To install the runtime and test requirements:
 
 ```
-poetry install
-eval $(poetry env activate)
+uv sync
+source .venv/bin/activate
 ```
 
 To also install the optional async dependencies (required to use `AsyncSSEClient`):
 
 ```
-poetry install --extras async
+uv sync --extra async
 ```
 
 ### Testing
