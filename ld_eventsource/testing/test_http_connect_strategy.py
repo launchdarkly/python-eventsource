@@ -1,5 +1,7 @@
 import logging
+from unittest import mock
 
+from urllib3 import PoolManager
 from urllib3.exceptions import ProtocolError
 
 from ld_eventsource import *
@@ -239,3 +241,34 @@ def test_fault_exposes_headers_from_http_error():
             assert fault.headers is not None
             assert fault.headers.get('Retry-After') == '60'
             assert fault.headers.get('X-Error-Code') == 'SERVICE_UNAVAILABLE'
+
+
+def test_close_leaves_caller_supplied_pool_open():
+    # The caller owns the lifecycle of a pool it supplies, so close() must not
+    # tear it down. (Regression: this ownership flag was inverted, causing the
+    # client to clear() a caller-supplied pool out from under the caller.)
+    pool = mock.MagicMock(spec=PoolManager)
+    client = ConnectStrategy.http("http://test", pool=pool).create_client(logger())
+
+    client.close()
+
+    pool.clear.assert_not_called()
+
+
+def test_close_closes_pool_it_created():
+    # When the client creates its own pool (no pool supplied), close() must close
+    # the pooled connections synchronously -- sending the TCP FIN now -- rather
+    # than leaving the sockets open until garbage collection. PoolManager.clear()
+    # alone does not close them on urllib3 2.x.
+    connection_pool = mock.Mock()
+    created_pool = mock.MagicMock()
+    created_pool.pools.keys.return_value = ['poolkey']
+    created_pool.pools.get.return_value = connection_pool
+
+    with mock.patch('ld_eventsource.http.PoolManager', return_value=created_pool):
+        client = ConnectStrategy.http("http://test").create_client(logger())
+
+    client.close()
+
+    connection_pool.close.assert_called_once()
+    created_pool.clear.assert_called_once()
