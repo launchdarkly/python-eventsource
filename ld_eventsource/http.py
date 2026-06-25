@@ -57,7 +57,7 @@ class _HttpClientImpl:
     def __init__(self, params: _HttpConnectParams, logger: Logger):
         self.__params = params
         self.__pool = params.pool or PoolManager()
-        self.__should_close_pool = params.pool is not None
+        self.__should_close_pool = params.pool is None
         self.__logger = logger
 
     def connect(self, last_event_id: Optional[str]) -> Tuple[Iterator[bytes], Callable, Dict[str, Any]]:
@@ -125,4 +125,14 @@ class _HttpClientImpl:
 
     def close(self):
         if self.__should_close_pool:
+            # Close pooled connections (sends the TCP FIN) before dropping the pool.
+            # PoolManager.clear() alone drops the pool dict without closing the
+            # underlying sockets, leaving the connection open until garbage collection.
+            for key in list(self.__pool.pools.keys()):
+                connection_pool = self.__pool.pools.get(key)
+                if connection_pool is not None:
+                    try:
+                        connection_pool.close()
+                    except Exception:
+                        self.__logger.debug("Error closing connection pool", exc_info=True)
             self.__pool.clear()
