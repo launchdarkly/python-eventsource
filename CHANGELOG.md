@@ -2,6 +2,13 @@
 
 All notable changes to the LaunchDarkly SSE Client for Python will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org).
 
+## [1.7.1](https://github.com/launchdarkly/python-eventsource/compare/1.7.0...1.7.1) (2026-06-25)
+
+
+### Bug Fixes
+
+* Correct pool ownership and close pooled connections synchronously ([#72](https://github.com/launchdarkly/python-eventsource/issues/72)) ([498d10e](https://github.com/launchdarkly/python-eventsource/commit/498d10ea157c896168b1447a669b0ae782070d83))
+
 ## [1.7.0](https://github.com/launchdarkly/python-eventsource/compare/1.6.0...1.7.0) (2026-06-22)
 
 
