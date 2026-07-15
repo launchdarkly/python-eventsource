@@ -115,24 +115,31 @@ class _HttpClientImpl:
         stream = resp.stream(_CHUNK_SIZE)
 
         def close():
-            try:
-                resp.shutdown()
-            except Exception:
-                pass
-            resp.release_conn()
+            if hasattr(resp, "shutdown"):
+                # urllib3 2.x: shutdown() wakes a reader blocked mid-read (SHUT_RD) so the
+                # subsequent close() -- which calls self._fp.close() and would otherwise
+                # deadlock on the reader's BufferedReader lock -- can proceed. close() then
+                # sends the TCP FIN and releases the fd. Both are built-ins.
+                try:
+                    resp.shutdown()
+                except Exception:
+                    self.__logger.debug("Error interrupting stream via resp.shutdown()", exc_info=True)
+                resp.close()
+            else:
+                # urllib3 1.26.x has no resp.shutdown(), and we deliberately do not reach
+                # into private socket attributes to find and shut down the socket. Without a
+                # way to wake a blocked reader first, resp.close() could deadlock on the
+                # reader's BufferedReader lock, so we fall back to the original behavior of
+                # releasing the connection back to the pool. This never hangs, but the socket
+                # is not closed deterministically -- deterministic close requires urllib3 2.x.
+                resp.release_conn()
 
         return stream, close, response_headers
 
     def close(self):
         if self.__should_close_pool:
-            # Close pooled connections (sends the TCP FIN) before dropping the pool.
-            # PoolManager.clear() alone drops the pool dict without closing the
-            # underlying sockets, leaving the connection open until garbage collection.
-            for key in list(self.__pool.pools.keys()):
-                connection_pool = self.__pool.pools.get(key)
-                if connection_pool is not None:
-                    try:
-                        connection_pool.close()
-                    except Exception:
-                        self.__logger.debug("Error closing connection pool", exc_info=True)
+            # Only clear a pool we created. On urllib3 2.x the active connection was already
+            # closed by the connection closer (resp.close()); we do not iterate and close the
+            # pool's connections ourselves, because doing so hangs on urllib3 1.26.x when a
+            # reader is still blocked mid-read on a connection.
             self.__pool.clear()

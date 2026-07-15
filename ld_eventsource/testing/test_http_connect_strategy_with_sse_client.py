@@ -1,6 +1,11 @@
+import threading
+import time
 from urllib.parse import parse_qsl
 
+import urllib3.response
+
 from ld_eventsource import *
+from ld_eventsource.actions import *
 from ld_eventsource.config import *
 from ld_eventsource.testing.helpers import *
 from ld_eventsource.testing.http_util import *
@@ -56,6 +61,113 @@ def test_sse_client_reconnects_after_socket_closed():
                     event2 = next(client.events)
                     assert event2.event == 'b'
                     assert event2.data == 'data2'
+
+
+def test_sse_client_reconnects_after_interrupt():
+    # interrupt() now fully closes the active HTTP connection (resp.close()) rather than
+    # releasing it back to the pool, so this verifies the client can still open a fresh
+    # stream and reconnect after an interrupt.
+    with start_server() as server:
+        with make_stream() as stream1:
+            with make_stream() as stream2:
+                server.for_path('/', SequentialHandler(stream1, stream2))
+                stream1.push("event: a\ndata: data1\n\n")
+                stream2.push("event: b\ndata: data2\n\n")
+                with SSEClient(
+                    connect=ConnectStrategy.http(server.uri),
+                    error_strategy=ErrorStrategy.always_continue(),
+                    initial_retry_delay=0,
+                ) as client:
+                    client.start()
+                    event1 = next(client.events)
+                    assert event1.event == 'a'
+                    assert event1.data == 'data1'
+
+                    # interrupt() closes the active connection (resp.close()); the
+                    # client discards it and will open a fresh stream on the next read.
+                    client.interrupt()
+
+                    # Release the first server-side handler so this single-threaded test
+                    # server can accept the reconnect. (The reconnect itself is driven by
+                    # the interrupt above, not by this close.)
+                    stream1.close()
+
+                    event2 = next(client.events)
+                    assert event2.event == 'b'
+                    assert event2.data == 'data2'
+
+
+# urllib3 2.x exposes HTTPResponse.shutdown(), which lets the closer wake a reader that is
+# blocked mid-read before closing the connection. urllib3 1.26.x has no such built-in, and
+# under design U-prime we deliberately do not reach into private socket attributes to wake
+# the reader. So on 2.x the reader is woken; on 1.26.x it is not -- but in NEITHER case may
+# the stop call itself hang.
+_CAN_WAKE_READER = hasattr(urllib3.response.HTTPResponse, "shutdown")
+
+
+def _run_concurrent_stop_test(stop_method_name):
+    # Exercises the concurrent shutdown pattern: a worker thread blocks mid-read on an idle
+    # stream while another thread stops the client. The stop call must return within the
+    # timeout on every urllib3 version (a hang here is the regression we guard against).
+    with start_server() as server:
+        with make_stream() as stream:
+            server.for_path('/', stream)
+            stream.push("event: a\ndata: data1\n\n")
+            client = SSEClient(
+                connect=ConnectStrategy.http(server.uri),
+                error_strategy=ErrorStrategy.always_continue(),
+                initial_retry_delay=0,
+            )
+            try:
+                client.start()
+                event1 = next(client.events)
+                assert event1.data == 'data1'
+
+                reader_woke = threading.Event()
+
+                def reader():
+                    try:
+                        next(client.all)  # blocks mid-read on the idle stream
+                    except BaseException:
+                        pass
+                    finally:
+                        reader_woke.set()
+
+                reader_thread = threading.Thread(target=reader, daemon=True)
+                reader_thread.start()
+                time.sleep(0.3)  # let the reader block inside the socket read
+
+                stopped = threading.Event()
+
+                def stopper():
+                    getattr(client, stop_method_name)()
+                    stopped.set()
+
+                stopper_thread = threading.Thread(target=stopper, daemon=True)
+                stopper_thread.start()
+
+                # Must never hang, on any urllib3 version.
+                assert stopped.wait(timeout=5), \
+                    "%s() deadlocked on a concurrently blocked reader" % stop_method_name
+
+                if _CAN_WAKE_READER:
+                    # urllib3 2.x: the closer's resp.shutdown() wakes the blocked reader.
+                    assert reader_woke.wait(timeout=5), \
+                        "%s() did not wake the concurrently blocked reader" % stop_method_name
+                else:
+                    # urllib3 1.26.x: the reader is intentionally not woken (U-prime does not
+                    # touch private socket attrs); only the no-hang guarantee above applies.
+                    pass
+            finally:
+                client.close()
+
+
+def test_close_stops_without_hang_with_concurrent_reader():
+    _run_concurrent_stop_test('close')
+
+
+def test_interrupt_stops_without_hang_with_concurrent_reader():
+    _run_concurrent_stop_test('interrupt')
 
 
 def test_sse_client_allows_modifying_query_params_dynamically():

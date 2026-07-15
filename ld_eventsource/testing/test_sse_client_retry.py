@@ -154,6 +154,45 @@ def test_retry_delay_gets_reset_after_threshold():
         assert client.next_retry_delay == initial_delay * 2
 
 
+def test_old_connection_closed_on_fault_reconnect():
+    # When a stream ends and the client reconnects, the old connection must be closed
+    # (rather than left for garbage collection) before the new one is opened.
+    closed = []
+
+    class RespondAndTrackClose(MockConnectionHandler):
+        def __init__(self, data, index):
+            self.__data = data
+            self.__index = index
+
+        def apply(self) -> ConnectionResult:
+            index = self.__index
+            return ConnectionResult(
+                stream=iter([bytes(self.__data, 'utf-8')]),
+                closer=lambda: closed.append(index),
+            )
+
+    mock = MockConnectStrategy(
+        RespondAndTrackClose("data: data1\n\n", 0),
+        RespondAndTrackClose("data: data2\n\n", 1),
+        ExpectNoMoreRequests(),
+    )
+    with SSEClient(
+        connect=mock,
+        error_strategy=ErrorStrategy.always_continue(),
+        retry_delay_strategy=no_delay(),
+    ) as client:
+        events = client.events
+
+        event1 = next(events)
+        assert event1.data == 'data1'
+
+        # Reading data2 requires the first stream to end and the client to reconnect;
+        # the first connection must have been closed as part of that reconnect.
+        event2 = next(events)
+        assert event2.data == 'data2'
+        assert closed == [0]
+
+
 def test_can_interrupt_and_restart_stream():
     initial_delay = 0.005
     mock = MockConnectStrategy(

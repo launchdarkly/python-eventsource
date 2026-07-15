@@ -168,6 +168,19 @@ class SSEClient:
             self.__connection_result = None
             self._compute_next_retry_delay()
 
+    def _close_current_connection(self):
+        # Close the current connection before dropping it so a fault-driven reconnect tears
+        # the old connection down deterministically (on urllib3 2.x) rather than deferring to
+        # garbage collection. This is only reached after the read loop has ended (stream
+        # exhausted or errored), so the reader is not blocked mid-read and closing cannot
+        # deadlock. Capture into a local and guard for None in case interrupt() nulled it
+        # concurrently; ConnectionResult.close() is idempotent, so a later interrupt()/close()
+        # is safe.
+        result = self.__connection_result
+        self.__connection_result = None
+        if result is not None:
+            result.close()
+
     @property
     def all(self) -> Iterable[Action]:
         """
@@ -218,13 +231,13 @@ class SSEClient:
                         break
                 # If we finished iterating all of reader.events_and_comments(), it means the stream
                 # was closed without an error.
-                self.__connection_result = None
+                self._close_current_connection()
             except Exception as e:
                 if self.__closed:
                     # It's normal to get an I/O error if we force-closed the stream to shut down
                     return
                 error = e
-                self.__connection_result = None
+                self._close_current_connection()
             finally:
                 self.__last_event_id = reader.last_event_id
 
