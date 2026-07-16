@@ -2,8 +2,6 @@ import threading
 import time
 from urllib.parse import parse_qsl
 
-import urllib3.response
-
 from ld_eventsource import *
 from ld_eventsource.actions import *
 from ld_eventsource.config import *
@@ -97,18 +95,10 @@ def test_sse_client_reconnects_after_interrupt():
                     assert event2.data == 'data2'
 
 
-# urllib3 2.x exposes HTTPResponse.shutdown(), which lets the closer wake a reader that is
-# blocked mid-read before closing the connection. urllib3 1.26.x has no such built-in, and
-# under design U-prime we deliberately do not reach into private socket attributes to wake
-# the reader. So on 2.x the reader is woken; on 1.26.x it is not -- but in NEITHER case may
-# the stop call itself hang.
-_CAN_WAKE_READER = hasattr(urllib3.response.HTTPResponse, "shutdown")
-
-
 def _run_concurrent_stop_test(stop_method_name):
     # Exercises the concurrent shutdown pattern: a worker thread blocks mid-read on an idle
     # stream while another thread stops the client. The stop call must return within the
-    # timeout on every urllib3 version (a hang here is the regression we guard against).
+    # timeout (a hang here is the regression we guard against).
     with start_server() as server:
         with make_stream() as stream:
             server.for_path('/', stream)
@@ -146,18 +136,13 @@ def _run_concurrent_stop_test(stop_method_name):
                 stopper_thread = threading.Thread(target=stopper, daemon=True)
                 stopper_thread.start()
 
-                # Must never hang, on any urllib3 version.
+                # Must never hang.
                 assert stopped.wait(timeout=5), \
                     "%s() deadlocked on a concurrently blocked reader" % stop_method_name
 
-                if _CAN_WAKE_READER:
-                    # urllib3 2.x: the closer's resp.shutdown() wakes the blocked reader.
-                    assert reader_woke.wait(timeout=5), \
-                        "%s() did not wake the concurrently blocked reader" % stop_method_name
-                else:
-                    # urllib3 1.26.x: the reader is intentionally not woken (U-prime does not
-                    # touch private socket attrs); only the no-hang guarantee above applies.
-                    pass
+                # The closer's resp.shutdown() wakes the blocked reader.
+                assert reader_woke.wait(timeout=5), \
+                    "%s() did not wake the concurrently blocked reader" % stop_method_name
             finally:
                 client.close()
 

@@ -256,14 +256,10 @@ def test_close_leaves_caller_supplied_pool_open():
 
 
 def test_close_clears_pool_it_created():
-    # When the client creates its own pool (no pool supplied), close() clears that pool.
-    # It must NOT iterate and close the individual connection pools itself: on urllib3
-    # 1.26.x that hangs when a reader is still blocked mid-read on a connection. On
-    # urllib3 2.x the active connection is already closed by the connection closer.
-    connection_pool = mock.Mock()
+    # When the client creates its own pool (no pool supplied), close() clears it. The active
+    # connection is already closed by the connection closer (resp.close()), so clearing the
+    # pool is all that's needed here.
     created_pool = mock.MagicMock()
-    created_pool.pools.keys.return_value = ['poolkey']
-    created_pool.pools.get.return_value = connection_pool
 
     with mock.patch('ld_eventsource.http.PoolManager', return_value=created_pool):
         client = ConnectStrategy.http("http://test").create_client(logger())
@@ -271,4 +267,3 @@ def test_close_clears_pool_it_created():
     client.close()
 
     created_pool.clear.assert_called_once()
-    connection_pool.close.assert_not_called()
