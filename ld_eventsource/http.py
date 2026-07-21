@@ -119,6 +119,14 @@ class _HttpClientImpl:
                 resp.shutdown()
             except Exception:
                 self.__logger.debug("Error interrupting stream via resp.shutdown()", exc_info=True)
+            # Close the connection's socket directly (public API) to also wake a
+            # blocked reader on Windows, where resp.shutdown() does not interrupt recv().
+            conn = resp.connection
+            if conn is not None:
+                try:
+                    conn.close()
+                except Exception:
+                    self.__logger.debug("Error closing stream connection", exc_info=True)
             resp.close()
 
         return stream, close, response_headers
