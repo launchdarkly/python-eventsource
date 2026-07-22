@@ -83,6 +83,10 @@ jobs:
   # against the locked/latest versions. One Python; not a full version matrix.
   floor:
     name: floor (lowest-direct deps)
+    # uv reads UV_RESOLUTION, so both `uv sync` (install) and `uv run pytest`
+    # in `make test` resolve the minimum declared versions.
+    env:
+      UV_RESOLUTION: lowest-direct
     strategy:
       fail-fast: false
       matrix:
@@ -97,5 +101,5 @@ jobs:
         with:
           python-version: "3.10"
 
-      - name: Run tests against lowest-direct dependency versions
-        run: uv run --resolution lowest-direct --all-extras pytest ld_eventsource/testing
+      - name: Run tests
+        run: make test
