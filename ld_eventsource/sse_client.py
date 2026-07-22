@@ -164,9 +164,15 @@ class SSEClient:
         """
         if self.__connection_result:
             self.__interrupted = True
-            self.__connection_result.close()
-            self.__connection_result = None
+            self._close_current_connection()
             self._compute_next_retry_delay()
+
+    def _close_current_connection(self):
+        # Close and drop the current connection, if any.
+        result = self.__connection_result
+        self.__connection_result = None
+        if result is not None:
+            result.close()
 
     @property
     def all(self) -> Iterable[Action]:
@@ -218,13 +224,13 @@ class SSEClient:
                         break
                 # If we finished iterating all of reader.events_and_comments(), it means the stream
                 # was closed without an error.
-                self.__connection_result = None
+                self._close_current_connection()
             except Exception as e:
                 if self.__closed:
                     # It's normal to get an I/O error if we force-closed the stream to shut down
                     return
                 error = e
-                self.__connection_result = None
+                self._close_current_connection()
             finally:
                 self.__last_event_id = reader.last_event_id
 

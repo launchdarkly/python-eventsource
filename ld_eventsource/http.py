@@ -1,3 +1,4 @@
+import sys
 from logging import Logger
 from typing import Any, Callable, Dict, Iterator, Optional, Tuple, cast
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
@@ -115,11 +116,20 @@ class _HttpClientImpl:
         stream = resp.stream(_CHUNK_SIZE)
 
         def close():
-            try:
-                resp.shutdown()
-            except Exception:
-                pass
-            resp.release_conn()
+            # We can only deterministically close the socket where a reader blocked
+            # mid-read can first be woken: POSIX with urllib3's resp.shutdown()
+            # (SHUT_RD). On Windows (shutdown() does not interrupt recv()) or on
+            # urllib3 without shutdown(), release instead -- the socket leaks until
+            # GC but this never deadlocks on the reader's BufferedReader lock.
+            if sys.platform != "win32" and hasattr(resp, "shutdown"):
+                if resp.connection is not None:
+                    try:
+                        resp.shutdown()
+                    except Exception:
+                        self.__logger.debug("Error interrupting stream via resp.shutdown()", exc_info=True)
+                resp.close()
+            else:
+                resp.release_conn()
 
         return stream, close, response_headers
 

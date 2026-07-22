@@ -255,11 +255,10 @@ def test_close_leaves_caller_supplied_pool_open():
     pool.clear.assert_not_called()
 
 
-def test_close_closes_pool_it_created():
-    # When the client creates its own pool (no pool supplied), close() must close
-    # the pooled connections synchronously -- sending the TCP FIN now -- rather
-    # than leaving the sockets open until garbage collection. PoolManager.clear()
-    # alone does not close them on urllib3 2.x.
+def test_close_clears_pool_it_created():
+    # When the client creates its own pool (no pool supplied), close() closes the pooled
+    # connections (to send FIN, since PoolManager.clear() does not on urllib3 2.x) and
+    # then clears the pool.
     connection_pool = mock.Mock()
     created_pool = mock.MagicMock()
     created_pool.pools.keys.return_value = ['poolkey']
