@@ -78,13 +78,10 @@ jobs:
       - name: Run tests
         run: make test
 
-  # Guards the minimum declared dependency versions (e.g. urllib3 1.26, which
-  # lacks HTTPResponse.shutdown()) on both platforms, since the regular jobs run
-  # against the locked/latest versions. One Python; not a full version matrix.
+  # Guards the minimum declared dependency versions, since the regular jobs
+  # run against the locked/latest versions. 
   floor:
     name: floor (lowest-direct deps)
-    # uv reads UV_RESOLUTION, so both `uv sync` (install) and `uv run pytest`
-    # in `make test` resolve the minimum declared versions.
     env:
       UV_RESOLUTION: lowest-direct
     strategy:
