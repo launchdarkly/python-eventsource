@@ -1,3 +1,4 @@
+import sys
 from logging import Logger
 from typing import Any, Callable, Dict, Iterator, Optional, Tuple, cast
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
@@ -115,24 +116,33 @@ class _HttpClientImpl:
         stream = resp.stream(_CHUNK_SIZE)
 
         def close():
-            try:
-                resp.shutdown()
-            except Exception:
-                self.__logger.debug("Error interrupting stream via resp.shutdown()", exc_info=True)
-            # Close the connection's socket directly (public API) to also wake a
-            # blocked reader on Windows, where resp.shutdown() does not interrupt recv().
-            conn = resp.connection
-            if conn is not None:
-                try:
-                    conn.close()
-                except Exception:
-                    self.__logger.debug("Error closing stream connection", exc_info=True)
-            resp.close()
+            # We can only deterministically close the socket where a reader blocked
+            # mid-read can first be woken: POSIX with urllib3's resp.shutdown()
+            # (SHUT_RD). On Windows (shutdown() does not interrupt recv()) or on
+            # urllib3 without shutdown(), release instead -- the socket leaks until
+            # GC but this never deadlocks on the reader's BufferedReader lock.
+            if sys.platform != "win32" and hasattr(resp, "shutdown"):
+                if resp.connection is not None:
+                    try:
+                        resp.shutdown()
+                    except Exception:
+                        self.__logger.debug("Error interrupting stream via resp.shutdown()", exc_info=True)
+                resp.close()
+            else:
+                resp.release_conn()
 
         return stream, close, response_headers
 
     def close(self):
         if self.__should_close_pool:
-            # Only clear a pool we created; the active connection was already closed by the
-            # connection closer (resp.close()), so clearing the pool is all that's left.
+            # Close pooled connections (sends the TCP FIN) before dropping the pool.
+            # PoolManager.clear() alone drops the pool dict without closing the
+            # underlying sockets, leaving the connection open until garbage collection.
+            for key in list(self.__pool.pools.keys()):
+                connection_pool = self.__pool.pools.get(key)
+                if connection_pool is not None:
+                    try:
+                        connection_pool.close()
+                    except Exception:
+                        self.__logger.debug("Error closing connection pool", exc_info=True)
             self.__pool.clear()

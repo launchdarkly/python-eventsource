@@ -256,14 +256,18 @@ def test_close_leaves_caller_supplied_pool_open():
 
 
 def test_close_clears_pool_it_created():
-    # When the client creates its own pool (no pool supplied), close() clears it. The active
-    # connection is already closed by the connection closer (resp.close()), so clearing the
-    # pool is all that's needed here.
+    # When the client creates its own pool (no pool supplied), close() closes the pooled
+    # connections (to send FIN, since PoolManager.clear() does not on urllib3 2.x) and
+    # then clears the pool.
+    connection_pool = mock.Mock()
     created_pool = mock.MagicMock()
+    created_pool.pools.keys.return_value = ['poolkey']
+    created_pool.pools.get.return_value = connection_pool
 
     with mock.patch('ld_eventsource.http.PoolManager', return_value=created_pool):
         client = ConnectStrategy.http("http://test").create_client(logger())
 
     client.close()
 
+    connection_pool.close.assert_called_once()
     created_pool.clear.assert_called_once()

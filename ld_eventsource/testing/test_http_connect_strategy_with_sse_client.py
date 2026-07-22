@@ -1,6 +1,9 @@
+import sys
 import threading
 import time
 from urllib.parse import parse_qsl
+
+import urllib3.response
 
 from ld_eventsource import *
 from ld_eventsource.actions import *
@@ -95,6 +98,12 @@ def test_sse_client_reconnects_after_interrupt():
                     assert event2.data == 'data2'
 
 
+# resp.shutdown() (SHUT_RD) can wake a reader blocked mid-recv only on POSIX with
+# urllib3 >= 2.3 (which has HTTPResponse.shutdown()). Elsewhere the closer releases the
+# connection instead, so the reader is NOT woken -- but the stop must still never hang.
+_CAN_WAKE_READER = sys.platform != "win32" and hasattr(urllib3.response.HTTPResponse, "shutdown")
+
+
 def _run_concurrent_stop_test(stop_method_name):
     # Exercises the concurrent shutdown pattern: a worker thread blocks mid-read on an idle
     # stream while another thread stops the client. The stop call must return within the
@@ -140,9 +149,10 @@ def _run_concurrent_stop_test(stop_method_name):
                 assert stopped.wait(timeout=5), \
                     "%s() deadlocked on a concurrently blocked reader" % stop_method_name
 
-                # The closer's resp.shutdown() wakes the blocked reader.
-                assert reader_woke.wait(timeout=5), \
-                    "%s() did not wake the concurrently blocked reader" % stop_method_name
+                if _CAN_WAKE_READER:
+                    # POSIX + urllib3>=2.3: the closer's resp.shutdown() wakes the reader.
+                    assert reader_woke.wait(timeout=5), \
+                        "%s() did not wake the concurrently blocked reader" % stop_method_name
             finally:
                 client.close()
 
