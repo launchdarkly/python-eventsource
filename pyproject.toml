@@ -1,6 +1,6 @@
 [project]
 name = "launchdarkly-eventsource"
-version = "1.7.1"
+version = "1.7.2"
 description = "LaunchDarkly SSE Client"
 authors = [
     {name = "LaunchDarkly", email = "dev@launchdarkly.com"}
