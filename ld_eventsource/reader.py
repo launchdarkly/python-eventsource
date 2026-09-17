@@ -16,7 +16,8 @@ class _BufferedLineReader:
         series of strings, each of which is one line of text. The line does not include the terminator.
         """
         last_char_was_cr = False
-        partial_line = None
+        # Join fragments only when a line ends to avoid repeatedly copying the partial line.
+        pending_fragments = []
 
         for chunk in chunks:
             if len(chunk) == 0:
@@ -35,18 +36,24 @@ class _BufferedLineReader:
                     lines.pop(0)
                     if len(lines) == 0:
                         continue  # ran out of data, continue to get next chunk
-            if partial_line is not None:
-                # On our last time through the loop, we ended up with an unterminated line, so we should
-                # treat our first parsed line here as a continuation of that.
-                lines[0] = partial_line + lines[0]
-                partial_line = None
+
+            last_char = chunk[-1]
+            terminated = last_char in (10, 13)
+
+            if pending_fragments:
+                pending_fragments.append(lines[0])
+                if len(lines) == 1 and not terminated:
+                    continue  # this chunk continues the pending line, but does not end it
+                # This chunk ends the pending line, so join the fragments one time.
+                lines[0] = b"".join(pending_fragments)
+                pending_fragments = []
+
             # Check whether the buffer really ended in a terminator. If it did not, then the last line in
             # lines is a partial line and should not be emitted yet.
-            last_char = chunk[-1]
             if last_char == 13:
                 last_char_was_cr = True  # remember this in case the next chunk starts with \n
             elif last_char != 10:
-                partial_line = lines.pop()  # remove last element which is the partial line
+                pending_fragments = [lines.pop()]  # remove last element which is the partial line
             for line in lines:
                 yield line.decode()
 

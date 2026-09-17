@@ -67,6 +67,25 @@ async def test_line_reader_empty_chunk():
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("terminator", ["\r", "\n", "\r\n"])
+async def test_line_reader_fragments_with_empty_chunks(terminator):
+    chunks = [s.replace("*", terminator).encode()
+              for s in ["first", "", " line", "*", "second*", "unterminated"]]
+    lines = await lines_from_bytes(*chunks)
+    assert lines == ["first line", "second"]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("terminator", ["\r", "\n", "\r\n"])
+async def test_line_reader_utf8_line_spanning_many_chunks(terminator):
+    line = "caf\u00e9 " * 1000
+    data = (line + terminator + "next line" + terminator).encode()
+    chunks = [data[i:i + 7] for i in range(0, len(data), 7)]
+    lines = await lines_from_bytes(*chunks)
+    assert lines == [line, "next line"]
+
+
+@pytest.mark.asyncio
 async def test_sse_reader_simple_event():
     items = await events_from_lines("data: hello", "")
     assert len(items) == 1

@@ -25,6 +25,10 @@ class TestBufferedLineReader:
                 ["first line*second line*third", " line*fourth line*"],
                 ["first line", "second line", "third line", "fourth line"],
             ],
+            [
+                ["first", "", " line", "*", "second*", "unterminated"],
+                ["first line", "second"],
+            ],
         ]
     )
     def inputs_outputs(self, terminator, request):
@@ -38,7 +42,9 @@ class TestBufferedLineReader:
 
     def test_mixed_terminators(self):
         chunks = [
-            b"first line\nsecond line\r\nthird line\r",
+            b"first line\nsecond line\r\nthird ",
+            b"line\r",
+            b"",
             b"\nfourth line\r",
             b"\r\nlast\r\n",
         ]
@@ -51,6 +57,12 @@ class TestBufferedLineReader:
             "last",
         ]
         assert list(_BufferedLineReader.lines_from(chunks)) == expected
+
+    def test_utf8_line_spanning_many_chunks(self, terminator):
+        line = "caf\u00e9 " * 1000
+        data = (line + terminator + "next line" + terminator).encode()
+        chunks = [data[i:i + 7] for i in range(0, len(data), 7)]
+        assert list(_BufferedLineReader.lines_from(chunks)) == [line, "next line"]
 
 
 class TestSSEReader:

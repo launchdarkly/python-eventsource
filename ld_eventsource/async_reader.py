@@ -12,7 +12,8 @@ class _AsyncBufferedLineReader:
     @staticmethod
     async def lines_from(chunks: AsyncIterator[bytes]) -> AsyncIterator[str]:
         last_char_was_cr = False
-        partial_line = None
+        # Join fragments only when a line ends to avoid repeatedly copying the partial line.
+        pending_fragments: list = []
 
         async for chunk in chunks:
             if len(chunk) == 0:
@@ -25,14 +26,22 @@ class _AsyncBufferedLineReader:
                     lines.pop(0)
                     if len(lines) == 0:
                         continue
-            if partial_line is not None:
-                lines[0] = partial_line + lines[0]
-                partial_line = None
+
             last_char = chunk[-1]
+            terminated = last_char in (10, 13)
+
+            if pending_fragments:
+                pending_fragments.append(lines[0])
+                if len(lines) == 1 and not terminated:
+                    continue  # this chunk continues the pending line, but does not end it
+                # This chunk ends the pending line, so join the fragments one time.
+                lines[0] = b"".join(pending_fragments)
+                pending_fragments = []
+
             if last_char == 13:
                 last_char_was_cr = True
             elif last_char != 10:
-                partial_line = lines.pop()
+                pending_fragments = [lines.pop()]
             for line in lines:
                 yield line.decode()
 
