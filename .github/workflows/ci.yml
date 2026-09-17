@@ -42,13 +42,29 @@ jobs:
         run: make start-contract-test-service-bg
 
       - name: run SSE contract tests
-        run: make run-contract-tests
+        uses: launchdarkly/gh-actions/actions/contract-tests@contract-tests-v1
+        with:
+          repo: sse-contract-tests
+          branch: main
+          version: v2
+          test_service_port: 8000
+          enable_persistence_tests: "false"
+          debug_logging: "true"
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: start async SSE contract test service
         run: make start-async-contract-test-service-bg
 
       - name: run async SSE contract tests
-        run: make run-async-contract-tests
+        uses: launchdarkly/gh-actions/actions/contract-tests@contract-tests-v1
+        with:
+          repo: sse-contract-tests
+          branch: main
+          version: v2
+          test_service_port: 8001
+          enable_persistence_tests: "false"
+          debug_logging: "true"
+          token: ${{ secrets.GITHUB_TOKEN }}
 
   windows:
     runs-on: windows-latest
