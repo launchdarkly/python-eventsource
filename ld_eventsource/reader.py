@@ -41,12 +41,10 @@ class _BufferedLineReader:
             terminated = last_char in (10, 13)
 
             if pending_fragments:
-                if len(lines) == 1 and not terminated:
-                    # This chunk continues the pending line without ending it.
-                    pending_fragments.append(lines[0])
-                    continue
-                # The first piece completes the pending line; join it with the saved fragments.
                 pending_fragments.append(lines[0])
+                if len(lines) == 1 and not terminated:
+                    continue  # this chunk continues the pending line, but does not end it
+                # This chunk ends the pending line, so join the fragments one time.
                 lines[0] = b"".join(pending_fragments)
                 pending_fragments = []
 
