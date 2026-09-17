@@ -2,6 +2,13 @@
 
 All notable changes to the LaunchDarkly SSE Client for Python will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org).
 
+## [1.7.3](https://github.com/launchdarkly/python-eventsource/compare/1.7.2...1.7.3) (2026-09-17)
+
+
+### Bug Fixes
+
+* avoid quadratic buffering of long SSE lines ([#76](https://github.com/launchdarkly/python-eventsource/issues/76)) ([8ede399](https://github.com/launchdarkly/python-eventsource/commit/8ede39958b215653eda8ec7ca29e00d6421e3287))
+
 ## [1.7.2](https://github.com/launchdarkly/python-eventsource/compare/1.7.1...1.7.2) (2026-07-22)
 
 
