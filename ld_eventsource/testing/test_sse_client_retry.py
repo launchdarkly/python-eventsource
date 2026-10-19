@@ -1,4 +1,6 @@
+import itertools
 from time import sleep
+from unittest.mock import patch
 
 from ld_eventsource import *
 from ld_eventsource.actions import *
@@ -138,8 +140,8 @@ def test_retry_delay_gets_reset_after_threshold():
         assert isinstance(item4, Fault)
         assert client.next_retry_delay == initial_delay * 2
 
-        # Sleeping the threshold should reset the retry thresholds
-        sleep(retry_delay_reset_threshold)
+        # Overshoot the threshold, because the clock can tick in ~15ms steps on Windows.
+        sleep(retry_delay_reset_threshold * 1.5)
 
         # Which we see it does here
         item5 = next(all)
@@ -152,6 +154,59 @@ def test_retry_delay_gets_reset_after_threshold():
         item6 = next(all)
         assert isinstance(item6, Fault)
         assert client.next_retry_delay == initial_delay * 2
+
+
+def test_retry_delay_reset_ignores_wall_clock_step():
+    initial_delay = 0.005
+    mock = MockConnectStrategy(
+        RespondWithData("data: data1\n\n"),
+        RejectConnection(HTTPStatusError(503)),
+    )
+    # Each wall-clock read steps forward one hour.
+    wall_clock = itertools.count(1_000_000_000, 3600)
+    with patch('time.time', side_effect=lambda: next(wall_clock)), patch('time.sleep'):
+        with SSEClient(
+            connect=mock,
+            error_strategy=ErrorStrategy.always_continue(),
+            initial_retry_delay=initial_delay,
+            retry_delay_reset_threshold=1000,
+            retry_delay_strategy=RetryDelayStrategy.default(jitter_multiplier=None),
+        ) as client:
+            all = client.all
+            assert isinstance(next(all), Start)
+            assert isinstance(next(all), Event)
+            assert isinstance(next(all), Fault)
+            assert client.next_retry_delay == initial_delay
+
+            # The connection lasted far less than the threshold, so the
+            # backoff must not reset.
+            assert isinstance(next(all), Fault)
+            assert client.next_retry_delay == initial_delay * 2
+
+
+def test_reconnect_delay_ignores_wall_clock_step():
+    initial_delay = 0.05
+    mock = MockConnectStrategy(
+        RejectConnection(HTTPStatusError(503)),
+        RespondWithData("data: data1\n\n"),
+        ExpectNoMoreRequests(),
+    )
+    # Each wall-clock read steps back one hour.
+    wall_clock = itertools.count(1_000_000_000, -3600)
+    with patch('time.time', side_effect=lambda: next(wall_clock)), patch(
+        'time.sleep'
+    ) as fake_sleep:
+        with SSEClient(
+            connect=mock,
+            error_strategy=retry_for_status(503),
+            initial_retry_delay=initial_delay,
+            retry_delay_strategy=RetryDelayStrategy.default(jitter_multiplier=None),
+        ) as client:
+            client.start()
+
+    delays = [c.args[0] for c in fake_sleep.call_args_list]
+    assert len(delays) == 1
+    assert 0 < delays[0] <= initial_delay
 
 
 def test_old_connection_closed_on_fault_reconnect():

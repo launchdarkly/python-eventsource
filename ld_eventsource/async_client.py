@@ -185,7 +185,7 @@ class AsyncSSEClient:
 
     def _compute_next_retry_delay(self):
         if self.__retry_delay_reset_threshold > 0 and self._retry_reset_baseline != 0:
-            now = time.time()
+            now = time.monotonic()
             connection_duration = now - self._retry_reset_baseline
             if connection_duration >= self.__retry_delay_reset_threshold:
                 self.__current_retry_delay_strategy = self.__base_retry_delay_strategy
@@ -203,7 +203,7 @@ class AsyncSSEClient:
                     self.__next_retry_delay
                     if self.__disconnected_time == 0
                     else self.__next_retry_delay
-                    - (time.time() - self.__disconnected_time)
+                    - (time.monotonic() - self.__disconnected_time)
                 )
                 if delay > 0:
                     self.__logger.info("Will reconnect after delay of %fs" % delay)
@@ -213,7 +213,7 @@ class AsyncSSEClient:
                     self.__last_event_id
                 )
             except Exception as e:
-                self.__disconnected_time = time.time()
+                self.__disconnected_time = time.monotonic()
                 self._compute_next_retry_delay()
                 fail_or_continue, self.__current_error_strategy = (
                     self.__current_error_strategy.apply(e)
@@ -223,7 +223,7 @@ class AsyncSSEClient:
                 if can_return_fault:
                     return Fault(e)
                 continue
-            self._retry_reset_baseline = time.time()
+            self._retry_reset_baseline = time.monotonic()
             self.__current_error_strategy = self.__base_error_strategy
             self.__interrupted = False
             return Start(self.__connection_result.headers)
