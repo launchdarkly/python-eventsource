@@ -2,6 +2,13 @@
 
 All notable changes to the LaunchDarkly SSE Client for Python will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org).
 
+## [1.7.4](https://github.com/launchdarkly/python-eventsource/compare/1.7.3...1.7.4) (2026-10-19)
+
+
+### Bug Fixes
+
+* Prevent long reconnect delays or skipped backoff after a system clock change ([#80](https://github.com/launchdarkly/python-eventsource/issues/80)) ([edf5946](https://github.com/launchdarkly/python-eventsource/commit/edf59465b3d75b6ae79a400012d8564cce34bb33))
+
 ## [1.7.3](https://github.com/launchdarkly/python-eventsource/compare/1.7.2...1.7.3) (2026-09-17)
 
 
