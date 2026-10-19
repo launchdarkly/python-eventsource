@@ -189,7 +189,7 @@ async def test_retry_delay_gets_reset_after_threshold():
         assert isinstance(item4, Fault)
         assert client.next_retry_delay == initial_delay * 2
 
-        await asyncio.sleep(retry_delay_reset_threshold)
+        await asyncio.sleep(retry_delay_reset_threshold + 0.05)
 
         item5 = await all_iter.__anext__()
         assert isinstance(item5, Fault)
@@ -232,3 +232,39 @@ async def test_reconnect_delay_ignores_wall_clock_step():
 
     assert len(delays) == 1
     assert 0 < delays[0] <= initial_delay
+
+
+@pytest.mark.asyncio
+async def test_retry_delay_reset_ignores_wall_clock_step():
+    initial_delay = 0.005
+    mock = MockAsyncConnectStrategy(
+        AsyncRespondWithData("data: data1\n\n"),
+        AsyncRejectConnection(HTTPStatusError(503)),
+    )
+    real_sleep = asyncio.sleep
+
+    async def fake_sleep(delay, *args, **kwargs):
+        await real_sleep(0)
+
+    # Each wall-clock read steps forward one hour.
+    wall_clock = itertools.count(1_000_000_000, 3600)
+    with patch('time.time', side_effect=lambda: next(wall_clock)), patch(
+        'ld_eventsource.async_client.asyncio.sleep', fake_sleep
+    ):
+        async with AsyncSSEClient(
+            connect=mock,
+            error_strategy=ErrorStrategy.always_continue(),
+            initial_retry_delay=initial_delay,
+            retry_delay_reset_threshold=1000,
+            retry_delay_strategy=RetryDelayStrategy.default(jitter_multiplier=None),
+        ) as client:
+            all_iter = client.all.__aiter__()
+            assert isinstance(await all_iter.__anext__(), Start)
+            assert isinstance(await all_iter.__anext__(), Event)
+            assert isinstance(await all_iter.__anext__(), Fault)
+            assert client.next_retry_delay == initial_delay
+
+            # The connection lasted far less than the threshold, so the
+            # backoff must not reset.
+            assert isinstance(await all_iter.__anext__(), Fault)
+            assert client.next_retry_delay == initial_delay * 2

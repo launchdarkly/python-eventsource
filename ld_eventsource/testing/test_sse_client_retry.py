@@ -141,7 +141,7 @@ def test_retry_delay_gets_reset_after_threshold():
         assert client.next_retry_delay == initial_delay * 2
 
         # Sleeping the threshold should reset the retry thresholds
-        sleep(retry_delay_reset_threshold)
+        sleep(retry_delay_reset_threshold + 0.05)
 
         # Which we see it does here
         item5 = next(all)
@@ -154,6 +154,34 @@ def test_retry_delay_gets_reset_after_threshold():
         item6 = next(all)
         assert isinstance(item6, Fault)
         assert client.next_retry_delay == initial_delay * 2
+
+
+def test_retry_delay_reset_ignores_wall_clock_step():
+    initial_delay = 0.005
+    mock = MockConnectStrategy(
+        RespondWithData("data: data1\n\n"),
+        RejectConnection(HTTPStatusError(503)),
+    )
+    # Each wall-clock read steps forward one hour.
+    wall_clock = itertools.count(1_000_000_000, 3600)
+    with patch('time.time', side_effect=lambda: next(wall_clock)), patch('time.sleep'):
+        with SSEClient(
+            connect=mock,
+            error_strategy=ErrorStrategy.always_continue(),
+            initial_retry_delay=initial_delay,
+            retry_delay_reset_threshold=1000,
+            retry_delay_strategy=RetryDelayStrategy.default(jitter_multiplier=None),
+        ) as client:
+            all = client.all
+            assert isinstance(next(all), Start)
+            assert isinstance(next(all), Event)
+            assert isinstance(next(all), Fault)
+            assert client.next_retry_delay == initial_delay
+
+            # The connection lasted far less than the threshold, so the
+            # backoff must not reset.
+            assert isinstance(next(all), Fault)
+            assert client.next_retry_delay == initial_delay * 2
 
 
 def test_reconnect_delay_ignores_wall_clock_step():
