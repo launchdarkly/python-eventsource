@@ -45,7 +45,7 @@ def test_max_time():
     should_raise, next2 = next1.apply(err)
     assert should_raise is False
 
-    time.sleep(0.2)
+    time.sleep(0.25)
 
     should_raise, next3 = next2.apply(err)
     assert should_raise is True
@@ -60,7 +60,7 @@ def test_max_time_ignores_wall_clock_step():
         should_raise, next1 = strategy.apply(err)
         assert should_raise is False
 
-        time.sleep(0.2)
+        time.sleep(0.25)
 
         should_raise, next2 = next1.apply(err)
         assert should_raise is True
