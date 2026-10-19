@@ -133,9 +133,9 @@ class _TimeLimitErrorStrategy(ErrorStrategy):
         if self.__start_time == 0:
             return (
                 ErrorStrategy.CONTINUE,
-                _TimeLimitErrorStrategy(self.__max_time, time.time()),
+                _TimeLimitErrorStrategy(self.__max_time, time.monotonic()),
             )
-        if (time.time() - self.__start_time) < self.__max_time:
+        if (time.monotonic() - self.__start_time) < self.__max_time:
             return (ErrorStrategy.CONTINUE, self)
         return (ErrorStrategy.FAIL, self)
 

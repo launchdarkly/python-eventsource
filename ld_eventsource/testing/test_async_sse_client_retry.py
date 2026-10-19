@@ -1,4 +1,6 @@
 import asyncio
+import itertools
+from unittest.mock import patch
 
 import pytest
 
@@ -198,3 +200,35 @@ async def test_retry_delay_gets_reset_after_threshold():
         item6 = await all_iter.__anext__()
         assert isinstance(item6, Fault)
         assert client.next_retry_delay == initial_delay * 2
+
+
+@pytest.mark.asyncio
+async def test_reconnect_delay_ignores_wall_clock_step():
+    initial_delay = 0.05
+    mock = MockAsyncConnectStrategy(
+        AsyncRejectConnection(HTTPStatusError(503)),
+        AsyncRespondWithData("data: data1\n\n"),
+        AsyncExpectNoMoreRequests(),
+    )
+    real_sleep = asyncio.sleep
+    delays = []
+
+    async def fake_sleep(delay, *args, **kwargs):
+        delays.append(delay)
+        await real_sleep(0)
+
+    # Each wall-clock read steps back one hour.
+    wall_clock = itertools.count(1_000_000_000, -3600)
+    with patch('time.time', side_effect=lambda: next(wall_clock)), patch(
+        'ld_eventsource.async_client.asyncio.sleep', fake_sleep
+    ):
+        async with AsyncSSEClient(
+            connect=mock,
+            error_strategy=retry_for_status(503),
+            initial_retry_delay=initial_delay,
+            retry_delay_strategy=RetryDelayStrategy.default(jitter_multiplier=None),
+        ) as client:
+            await client.start()
+
+    assert len(delays) == 1
+    assert 0 < delays[0] <= initial_delay

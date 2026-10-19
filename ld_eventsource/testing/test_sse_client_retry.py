@@ -1,4 +1,6 @@
+import itertools
 from time import sleep
+from unittest.mock import patch
 
 from ld_eventsource import *
 from ld_eventsource.actions import *
@@ -152,6 +154,31 @@ def test_retry_delay_gets_reset_after_threshold():
         item6 = next(all)
         assert isinstance(item6, Fault)
         assert client.next_retry_delay == initial_delay * 2
+
+
+def test_reconnect_delay_ignores_wall_clock_step():
+    initial_delay = 0.05
+    mock = MockConnectStrategy(
+        RejectConnection(HTTPStatusError(503)),
+        RespondWithData("data: data1\n\n"),
+        ExpectNoMoreRequests(),
+    )
+    # Each wall-clock read steps back one hour.
+    wall_clock = itertools.count(1_000_000_000, -3600)
+    with patch('time.time', side_effect=lambda: next(wall_clock)), patch(
+        'time.sleep'
+    ) as fake_sleep:
+        with SSEClient(
+            connect=mock,
+            error_strategy=retry_for_status(503),
+            initial_retry_delay=initial_delay,
+            retry_delay_strategy=RetryDelayStrategy.default(jitter_multiplier=None),
+        ) as client:
+            client.start()
+
+    delays = [c.args[0] for c in fake_sleep.call_args_list]
+    assert len(delays) == 1
+    assert 0 < delays[0] <= initial_delay
 
 
 def test_old_connection_closed_on_fault_reconnect():
