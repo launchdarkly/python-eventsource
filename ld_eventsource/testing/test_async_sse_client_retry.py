@@ -189,7 +189,8 @@ async def test_retry_delay_gets_reset_after_threshold():
         assert isinstance(item4, Fault)
         assert client.next_retry_delay == initial_delay * 2
 
-        await asyncio.sleep(retry_delay_reset_threshold + 0.05)
+        # Overshoot the threshold, because the clock can tick in ~15ms steps on Windows.
+        await asyncio.sleep(retry_delay_reset_threshold * 1.5)
 
         item5 = await all_iter.__anext__()
         assert isinstance(item5, Fault)
