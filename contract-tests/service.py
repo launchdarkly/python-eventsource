@@ -48,7 +48,9 @@ def status():
             'comments',
             'headers',
             'last-event-id',
-            'read-timeout'
+            'read-timeout',
+            'restart',
+            'server-directed-shutdown-request'
         ]
     }
     return (json.dumps(body), 200, {'Content-type': 'application/json'})
