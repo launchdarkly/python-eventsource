@@ -14,6 +14,7 @@ from ld_eventsource.async_client import AsyncSSEClient  # noqa: E402
 from ld_eventsource.config.async_connect_strategy import \
     AsyncConnectStrategy  # noqa: E402
 from ld_eventsource.config.error_strategy import ErrorStrategy  # noqa: E402
+from ld_eventsource.errors import HTTPStatusError  # noqa: E402
 
 
 def millis_to_seconds(t):
@@ -26,6 +27,7 @@ class AsyncStreamEntity:
         self.callback_url = options["callbackUrl"]
         self.log = logging.getLogger(options["tag"])
         self.closed = False
+        self._suppress_next_fault = False
         self.callback_counter = 0
         self.sse = None
         self._http_session = http_session
@@ -52,8 +54,11 @@ class AsyncStreamEntity:
                 initial_retry_delay=millis_to_seconds(self.options.get("initialDelayMs")),
                 last_event_id=self.options.get("lastEventId"),
                 error_strategy=ErrorStrategy.from_lambda(
-                    lambda _: (
-                        ErrorStrategy.FAIL if self.closed else ErrorStrategy.CONTINUE,
+                    lambda e: (
+                        ErrorStrategy.FAIL
+                        if self.closed
+                        or (isinstance(e, HTTPStatusError) and e.status == 204)
+                        else ErrorStrategy.CONTINUE,
                         None,
                     )
                 ),
@@ -80,6 +85,11 @@ class AsyncStreamEntity:
                     if self.closed:
                         break
                     if item.error:
+                        # See stream_entity.py: a caller-triggered interrupt surfaces as
+                        # an error on the read path; we don't report it to the harness.
+                        if self._suppress_next_fault:
+                            self._suppress_next_fault = False
+                            continue
                         self.log.info('Received error from stream: %s', item.error)
                         await self.send_message({'kind': 'error', 'error': str(item.error)})
         except Exception as e:
@@ -89,7 +99,11 @@ class AsyncStreamEntity:
 
     async def do_command(self, command: str) -> bool:
         self.log.info('Test service sent command: %s' % command)
-        # currently we support no special commands
+        if command == 'restart':
+            if self.sse:
+                self._suppress_next_fault = True
+                await self.sse.interrupt()
+            return True
         return False
 
     async def send_message(self, message):

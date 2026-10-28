@@ -12,6 +12,7 @@ sys.path.insert(1, os.path.join(sys.path[0], '..'))
 from ld_eventsource import *  # noqa: E402
 from ld_eventsource.actions import *  # noqa: E402
 from ld_eventsource.config import *  # noqa: E402
+from ld_eventsource.errors import HTTPStatusError  # noqa: E402
 
 http_client = urllib3.PoolManager()
 
@@ -26,6 +27,7 @@ class StreamEntity:
         self.callback_url = options["callbackUrl"]
         self.log = logging.getLogger(options["tag"])
         self.closed = False
+        self._suppress_next_fault = False
         self.callback_counter = 0
         self.sse = None
 
@@ -56,8 +58,11 @@ class StreamEntity:
                 ),
                 last_event_id=self.options.get("lastEventId"),
                 error_strategy=ErrorStrategy.from_lambda(
-                    lambda _: (
-                        ErrorStrategy.FAIL if self.closed else ErrorStrategy.CONTINUE,
+                    lambda e: (
+                        ErrorStrategy.FAIL
+                        if self.closed
+                        or (isinstance(e, HTTPStatusError) and e.status == 204)
+                        else ErrorStrategy.CONTINUE,
                         None,
                     )
                 ),
@@ -86,6 +91,12 @@ class StreamEntity:
                     # item.error will be None if this is just an EOF rather than an I/O error or HTTP error.
                     # Currently the test harness does not expect us to send an error message in that case.
                     if item.error:
+                        # A caller-triggered interrupt ("restart" command) surfaces as an
+                        # error on the read path; like other services (e.g. okhttp's
+                        # StreamClosedByCallerException suppression) we don't report it.
+                        if self._suppress_next_fault:
+                            self._suppress_next_fault = False
+                            continue
                         self.log.info('Received error from stream: %s' % item.error)
                         self.send_message({'kind': 'error', 'error': str(item.error)})
         except Exception as e:
@@ -95,7 +106,11 @@ class StreamEntity:
 
     def do_command(self, command: str) -> bool:
         self.log.info('Test service sent command: %s' % command)
-        # currently we support no special commands
+        if command == 'restart':
+            if self.sse:
+                self._suppress_next_fault = True
+                self.sse.interrupt()
+            return True
         return False
 
     def send_message(self, message):
