@@ -41,6 +41,8 @@ async def handle_get_status(request):
             'headers',
             'last-event-id',
             'read-timeout',
+            'restart',
+            'server-directed-shutdown-request'
         ]
     }
     return aiohttp.web.Response(
