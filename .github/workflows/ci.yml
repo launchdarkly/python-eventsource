@@ -42,7 +42,7 @@ jobs:
         run: make start-contract-test-service-bg
 
       - name: run SSE contract tests
-        uses: launchdarkly/gh-actions/actions/contract-tests@contract-tests-v1
+        uses: launchdarkly/gh-actions/actions/contract-tests@contract-tests/v1
         with:
           repo: sse-contract-tests
           branch: main
@@ -56,7 +56,7 @@ jobs:
         run: make start-async-contract-test-service-bg
 
       - name: run async SSE contract tests
-        uses: launchdarkly/gh-actions/actions/contract-tests@contract-tests-v1
+        uses: launchdarkly/gh-actions/actions/contract-tests@contract-tests/v1
         with:
           repo: sse-contract-tests
           branch: main
@@ -126,7 +126,7 @@ jobs:
         run: make start-contract-test-service-bg
 
       - name: Run SSE contract tests against the sdist
-        uses: launchdarkly/gh-actions/actions/contract-tests@contract-tests-v1
+        uses: launchdarkly/gh-actions/actions/contract-tests@contract-tests/v1
         with:
           repo: sse-contract-tests
           branch: main
@@ -141,7 +141,7 @@ jobs:
         run: make start-async-contract-test-service-bg
 
       - name: Run async SSE contract tests against the sdist
-        uses: launchdarkly/gh-actions/actions/contract-tests@contract-tests-v1
+        uses: launchdarkly/gh-actions/actions/contract-tests@contract-tests/v1
         with:
           repo: sse-contract-tests
           branch: main
